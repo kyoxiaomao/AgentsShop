@@ -4,8 +4,6 @@ __pycache__/
 *.pyd
 .pytest_cache/
 
-.env
-.env.*
 
 node_modules/
 
@@ -14,6 +12,8 @@ dist-electron/
 release/
 out/
 .vite/
+.vercel/
+.electron-user-data/
 
 *.log
 npm-debug.log*

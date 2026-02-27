@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain } from 'electron'
+import { app, BrowserWindow, Menu, ipcMain, screen } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
@@ -15,6 +15,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // │
 process.env.APP_ROOT = path.join(__dirname, '..')
 
+app.disableHardwareAcceleration()
+app.commandLine.appendSwitch('disable-gpu')
+app.commandLine.appendSwitch('disable-software-rasterizer')
+app.commandLine.appendSwitch('force-color-profile', 'srgb')
+app.commandLine.appendSwitch('disable-spell-checking')
+
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
@@ -25,21 +31,32 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win: BrowserWindow | null
 
 function createWindow() {
+  const display = screen.getPrimaryDisplay()
+  const workArea = display.workArea
+  const windowHeight = 260
+
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
-    width: 520,
-    height: 240,
+    x: workArea.x,
+    y: workArea.y + workArea.height - windowHeight,
+    width: workArea.width,
+    height: windowHeight,
     transparent: true,
     frame: false,
     hasShadow: false,
     alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
     backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      spellcheck: false,
     },
   })
+
+  win.setIgnoreMouseEvents(true, { forward: true })
 
   ipcMain.removeHandler('menu:open')
   ipcMain.handle('menu:open', async () => {
@@ -81,6 +98,12 @@ function createWindow() {
     ])
 
     menu.popup({ window: win })
+  })
+
+  ipcMain.removeAllListeners('mouse:interactive')
+  ipcMain.on('mouse:interactive', (_event, isInteractive: boolean) => {
+    if (!win) return
+    win.setIgnoreMouseEvents(!isInteractive, { forward: true })
   })
 
   if (VITE_DEV_SERVER_URL) {

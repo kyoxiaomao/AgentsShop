@@ -3,6 +3,7 @@ import { PhaserPet } from './PhaserPet'
 
 function App() {
   const [lastAction, setLastAction] = useState<string>('')
+  const [isIpcHover, setIsIpcHover] = useState(false)
 
   useEffect(() => {
     const off = window.desktopApi.onMenuResult((payload) => {
@@ -13,22 +14,39 @@ function App() {
   }, [])
 
   return (
-    <div className="relative flex h-full w-full items-center gap-2 p-2">
-      <button
-        className="h-9 rounded-xl border border-white/15 bg-white/10 px-3 text-sm font-semibold text-white/90 backdrop-blur hover:bg-white/15"
-        type="button"
-        onClick={() => window.desktopApi.openMenu()}
-      >
-        IPC
-      </button>
-      <div className="h-full min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur">
+    <div className="relative h-full w-full bg-transparent">
+      <div className="absolute inset-x-0 bottom-0 h-full">
         <PhaserPet />
       </div>
-      {lastAction ? (
-        <div className="absolute bottom-2 right-2 rounded-2xl border border-white/10 bg-white/10 px-3 py-1 text-xs text-white/85 backdrop-blur">
-          {lastAction}
-        </div>
-      ) : null}
+
+      <div
+        className="pointer-events-auto absolute right-4 top-1/2 -translate-y-1/2"
+        onMouseEnter={() => {
+          setIsIpcHover(true)
+          window.desktopApi.setMouseInteractive(true)
+        }}
+        onMouseLeave={() => {
+          setIsIpcHover(false)
+          window.desktopApi.setMouseInteractive(false)
+        }}
+      >
+        <button
+          className="grid h-12 w-12 cursor-pointer place-items-center rounded-full bg-white/0"
+          type="button"
+          onClick={() => window.desktopApi.openMenu()}
+        >
+          <img
+            className="h-10 w-10"
+            src={isIpcHover ? '/electron-vite.animate.svg' : '/electron-vite.svg'}
+            alt="IPC"
+          />
+        </button>
+        {lastAction ? (
+          <div className="mt-2 max-w-56 rounded-xl border border-white/10 bg-black/20 px-2 py-1 text-[10px] text-white/85 backdrop-blur">
+            {lastAction}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

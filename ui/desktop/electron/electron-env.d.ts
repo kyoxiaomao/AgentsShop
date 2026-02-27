@@ -25,6 +25,7 @@ declare namespace NodeJS {
 interface Window {
   desktopApi: {
     openMenu: () => Promise<void>
+    setMouseInteractive: (isInteractive: boolean) => void
     onMenuResult: (listener: (payload: { action: string; value?: unknown }) => void) => () => void
   }
 }
