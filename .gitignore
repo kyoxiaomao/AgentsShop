@@ -7,4 +7,8 @@ __pycache__/
 
 .trae/
 
+ui/env/node_modules/
+#ui/env/.electron-vite/
+ui/node_modules/
+
 

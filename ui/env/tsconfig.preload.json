@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node", "electron"],
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["../desktop/preload/**/*.ts"]
+}
+

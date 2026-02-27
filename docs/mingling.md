@@ -11,9 +11,3 @@ python -m pip install --upgrade pip
 pip install agentscope -i https://pypi.tuna.tsinghua.edu.cn/simple
 pip install agentscope-runtime -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-## 运行
-cd d:\AgentsShop\ui\web
-npm run dev
-
-cd d:\AgentsShop\ui\desktop
-npm run dev
