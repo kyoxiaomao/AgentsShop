@@ -1,0 +1,25 @@
+{
+  "name": "agentshop-web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "vite",
+    "dev:index": "vite --open /",
+    "dev:admin": "vite --open /admin.html",
+    "dev:all": "concurrently -k \"powershell -Command \\\"cd ../../..; python -m datacenter.server\\\"\" \"powershell -Command \\\"Start-Sleep -Seconds 2; npm run dev:index\\\"\"",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.0",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^8.2.2",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
+    "vite": "^5.2.0"
+  }
+}
