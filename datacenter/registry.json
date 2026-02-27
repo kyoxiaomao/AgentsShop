@@ -1,0 +1,10 @@
+{
+  "agents": [
+    {
+      "id": "seraAgent",
+      "name": "seraAgent",
+      "cn_name": "塞瑞",
+      "enabled": true
+    }
+  ]
+}

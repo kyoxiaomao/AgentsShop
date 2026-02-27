@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "agents": [
+    {
+      "id": "seraAgent",
+      "name": "seraAgent",
+      "cn_name": "塞瑞",
+      "enabled": true
+    }
+  ],
+  "status": {
+    "seraAgent": {
+      "status": "offline",
+      "updated_at": "1970-01-01T00:00:00Z"
+    }
+  }
+}
