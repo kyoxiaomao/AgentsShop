@@ -13,7 +13,8 @@ pip install agentscope-runtime -i https://pypi.tuna.tsinghua.edu.cn/simple
 
  cd d:\AgentsShop\ui\env
  npm run dev:desktop
-d:\AgentsShop\ui\web\index
+cd d:\AgentsShop\ui\web\index 
+npm run dev:all
 
 - 主页： npm run dev:index （自动打开 / ）npm run dev:all
 - 管理端： npm run dev:admin （自动打开
