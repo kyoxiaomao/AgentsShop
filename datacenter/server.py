@@ -4,6 +4,7 @@ import importlib
 import json
 import logging
 import os
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -19,6 +20,9 @@ STATUS_FILE = os.path.join(BASE_DIR, "status.json")
 LOGS_DIR = os.path.join(ROOT_DIR, "logs")
 CHAT_LOG_FILE = os.path.join(LOGS_DIR, "chat.jsonl")
 DEBUG_LOG_FILE = os.path.join(LOGS_DIR, "debug.jsonl")
+STREAM_CHUNK_DELAY = float(os.getenv("STREAM_CHUNK_DELAY", "0.02"))
+STREAM_CHUNK_SIZE = max(1, int(os.getenv("STREAM_CHUNK_SIZE", "1")))
+STREAM_CHUNK_MODE = os.getenv("STREAM_CHUNK_MODE", "raw").lower()
 
 AGENT_MESSAGE_DIRS = {
     "seraAgent": os.path.join(ROOT_DIR, "agents", "queen", "Queen_Sera", "message"),
@@ -63,23 +67,29 @@ def _extract_text(value) -> str:
         for item in value:
             if isinstance(item, dict):
                 item_type = item.get("type")
+                if item_type in {"thinking", "tool_use", "tool_result", "audio", "image", "video"}:
+                    continue
                 if item_type == "text" and "text" in item:
                     parts.append(str(item.get("text", "")))
                 elif "text" in item:
                     parts.append(str(item.get("text", "")))
                 elif "content" in item:
                     parts.append(_extract_text(item.get("content")))
-                else:
-                    parts.append(json.dumps(item, ensure_ascii=False))
+                elif "thinking" in item:
+                    continue
             else:
                 parts.append(_extract_text(item))
         return "\n\n".join([p for p in parts if p is not None])
     if isinstance(value, dict):
+        if value.get("type") in {"thinking", "tool_use", "tool_result", "audio", "image", "video"}:
+            return ""
         if "text" in value:
             return str(value.get("text", ""))
         if "content" in value:
             return _extract_text(value.get("content"))
-        return json.dumps(value, ensure_ascii=False)
+        if "thinking" in value:
+            return ""
+        return ""
     return str(value)
 
 def _read_json(path: str, default):
@@ -212,11 +222,23 @@ def _clear_agent_messages() -> None:
                     continue
 
 
-def _iter_chunks(text: str, size: int = 30):
+def _iter_chunks(text: str, size: int = 1):
     if not text:
         return
     for i in range(0, len(text), size):
         yield text[i : i + size]
+
+
+def _diff_text(next_text: str, prev_text: str) -> str:
+    if not next_text:
+        return ""
+    if next_text.startswith(prev_text):
+        return next_text[len(prev_text) :]
+    max_len = min(len(next_text), len(prev_text))
+    idx = 0
+    while idx < max_len and next_text[idx] == prev_text[idx]:
+        idx += 1
+    return next_text[idx:]
 
 
 def _get_agent(agent_id: str):
@@ -330,6 +352,8 @@ class ApiHandler(BaseHTTPRequestHandler):
             try:
                 _update_status(agent_id, "busy")
                 agent = _get_agent(agent_id)
+                if hasattr(agent, "model") and hasattr(agent.model, "stream"):
+                    agent.model.stream = True
                 try:
                     from agentscope.message import Msg
                 except Exception as e:
@@ -342,21 +366,126 @@ class ApiHandler(BaseHTTPRequestHandler):
                     return
                 msg = Msg(name="User", content=content, role="user")
                 _append_debug_log("agent_reply_start", {"agent_id": agent_id, "session_id": session_id})
-                response = asyncio.run(agent.reply(msg))
-                reply_text = _extract_text(getattr(response, "content", ""))
+                _append_debug_log(
+                    "stream_mode",
+                    {"agent_id": agent_id, "session_id": session_id, "mode": "agent_queue"},
+                )
+
+                async def _stream_reply():
+                    # 基于 agentscope 的消息队列实现流式：agent.reply 在后台推理，队列里持续产出中间消息
+                    stream_start = time.monotonic()
+                    last_text = ""
+                    chunk_count = 0
+                    idle_rounds = 0
+                    stream_last_received = False
+                    first_queue_ms = None
+                    first_delta_ms = None
+                    reply_done_ms = None
+                    # 创建专用队列用于接收 agent 的流式消息
+                    stream_queue = asyncio.Queue(maxsize=200)
+                    agent.set_msg_queue_enabled(True, stream_queue)
+                    try:
+                        # 异步执行推理任务，同时从队列读取增量内容
+                        reply_task = asyncio.create_task(agent.reply(msg))
+                        self._send_sse({"type": "start"})
+                        while True:
+                            # 推理结束且队列已清空时结束流式循环
+                            if reply_task.done() and stream_last_received and (
+                                agent.msg_queue is None or agent.msg_queue.empty()
+                            ):
+                                break
+                            if agent.msg_queue is None:
+                                await asyncio.sleep(0.05)
+                                continue
+                            try:
+                                # 从队列取出最新消息（包含中间增量）
+                                queued = await asyncio.wait_for(
+                                    agent.msg_queue.get(),
+                                    timeout=0.2,
+                                )
+                                idle_rounds = 0
+                            except asyncio.TimeoutError:
+                                # 队列暂时无数据，若推理已完成则累计空转次数以便退出
+                                if reply_task.done() and reply_done_ms is None:
+                                    reply_done_ms = int((time.monotonic() - stream_start) * 1000)
+                                if reply_task.done():
+                                    idle_rounds += 1
+                                    if idle_rounds >= 5 and (
+                                        agent.msg_queue is None or agent.msg_queue.empty()
+                                    ):
+                                        break
+                                continue
+                            queued_msg, _is_last, _speech = queued
+                            if first_queue_ms is None:
+                                first_queue_ms = int((time.monotonic() - stream_start) * 1000)
+                            if _is_last:
+                                stream_last_received = True
+                            # 从队列消息中提取文本内容（过滤 thinking/tool 等），并计算增量，避免重复输出
+                            current_text = _extract_text(getattr(queued_msg, "content", ""))
+                            delta = _diff_text(current_text, last_text)
+                            if delta:
+                                if STREAM_CHUNK_MODE == "raw":
+                                    self._send_sse({"type": "delta", "content": delta})
+                                    chunk_count += 1
+                                else:
+                                    # 按配置拆分成更小块，模拟逐字/逐块输出
+                                    for piece in _iter_chunks(delta, STREAM_CHUNK_SIZE):
+                                        self._send_sse({"type": "delta", "content": piece})
+                                        chunk_count += 1
+                                        if STREAM_CHUNK_DELAY > 0:
+                                            await asyncio.sleep(STREAM_CHUNK_DELAY)
+                                if first_delta_ms is None:
+                                    first_delta_ms = int((time.monotonic() - stream_start) * 1000)
+                                last_text = current_text
+                        reply_msg = await reply_task
+                        if reply_done_ms is None:
+                            reply_done_ms = int((time.monotonic() - stream_start) * 1000)
+                        # 收尾：从最终回复中提取文本内容，并补齐剩余部分
+                        reply_text = _extract_text(getattr(reply_msg, "content", ""))
+                        tail = _diff_text(reply_text, last_text)
+                        if tail:
+                            if STREAM_CHUNK_MODE == "raw":
+                                self._send_sse({"type": "delta", "content": tail})
+                                chunk_count += 1
+                            else:
+                                for piece in _iter_chunks(tail, STREAM_CHUNK_SIZE):
+                                    self._send_sse({"type": "delta", "content": piece})
+                                    chunk_count += 1
+                                    if STREAM_CHUNK_DELAY > 0:
+                                        await asyncio.sleep(STREAM_CHUNK_DELAY)
+                            last_text = reply_text
+                        stream_end_ms = int((time.monotonic() - stream_start) * 1000)
+                        timing = {
+                            "queue_first_ms": first_queue_ms,
+                            "delta_first_ms": first_delta_ms,
+                            "reply_done_ms": reply_done_ms,
+                            "stream_end_ms": stream_end_ms,
+                        }
+                        return reply_text, chunk_count, timing
+                    finally:
+                        agent.set_msg_queue_enabled(False)
+
+                reply_text, chunk_count, timing = asyncio.run(_stream_reply())
                 _append_debug_log(
                     "stream_reply_extracted",
                     {"agent_id": agent_id, "session_id": session_id, "length": len(reply_text)},
                 )
                 _append_debug_log(
+                    "stream_timing",
+                    {
+                        "agent_id": agent_id,
+                        "session_id": session_id,
+                        "queue_first_ms": timing.get("queue_first_ms"),
+                        "delta_first_ms": timing.get("delta_first_ms"),
+                        "reply_done_ms": timing.get("reply_done_ms"),
+                        "stream_end_ms": timing.get("stream_end_ms"),
+                        "chunks": chunk_count,
+                    },
+                )
+                _append_debug_log(
                     "agent_reply_end",
                     {"agent_id": agent_id, "session_id": session_id, "length": len(reply_text)},
                 )
-                self._send_sse({"type": "start"})
-                chunk_count = 0
-                for chunk in _iter_chunks(reply_text, 30):
-                    self._send_sse({"type": "delta", "content": chunk})
-                    chunk_count += 1
                 _append_debug_log(
                     "stream_chunks_sent",
                     {"agent_id": agent_id, "session_id": session_id, "chunks": chunk_count},

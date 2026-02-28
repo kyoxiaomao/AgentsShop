@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 const fallbackAgents = [
   { id: 'seraAgent', name: 'seraAgent', cn_name: '塞瑞', enabled: true },
@@ -16,12 +18,59 @@ const statusStyles = {
   offline: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
 }
 
+const markdownComponents = {
+  p: ({ children }) => <p className="whitespace-pre-wrap leading-6">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc space-y-1 pl-5">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal space-y-1 pl-5">{children}</ol>,
+  li: ({ children }) => <li className="leading-6">{children}</li>,
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 border-slate-700 pl-3 text-slate-300">
+      {children}
+    </blockquote>
+  ),
+  strong: ({ children }) => <strong className="font-semibold text-slate-100">{children}</strong>,
+  code: ({ inline, children }) =>
+    inline ? (
+      <code className="rounded bg-slate-800/80 px-1 py-0.5 text-xs text-slate-100">
+        {children}
+      </code>
+    ) : (
+      <code className="block whitespace-pre-wrap">{children}</code>
+    ),
+  pre: ({ children }) => (
+    <pre className="overflow-auto rounded-lg border border-slate-800 bg-slate-950/80 p-3 text-xs text-slate-200">
+      {children}
+    </pre>
+  ),
+  table: ({ children }) => (
+    <div className="overflow-auto">
+      <table className="w-full border-collapse text-left text-sm">{children}</table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th className="border border-slate-800 bg-slate-900/70 px-3 py-2 font-semibold text-slate-100">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border border-slate-800 px-3 py-2 align-top text-slate-200">
+      {children}
+    </td>
+  ),
+  a: ({ children, href }) => (
+    <a className="text-indigo-300 underline decoration-slate-500" href={href} target="_blank" rel="noreferrer">
+      {children}
+    </a>
+  ),
+}
+
 export default function App() {
   const [agents, setAgents] = useState(fallbackAgents)
   const [statusMap, setStatusMap] = useState({})
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [dotCount, setDotCount] = useState(1)
   const streamIdRef = useRef(null)
   const reportDebug = (event, data = {}) => {
     fetch('/api/debug', {
@@ -68,6 +117,16 @@ export default function App() {
       })
   }, [])
 
+  useEffect(() => {
+    if (!sending) {
+      return
+    }
+    const timer = window.setInterval(() => {
+      setDotCount((prev) => (prev >= 3 ? 1 : prev + 1))
+    }, 500)
+    return () => window.clearInterval(timer)
+  }, [sending])
+
   const viewAgents = useMemo(() => {
     return agents.map((agent) => {
       const status = statusMap?.[agent.id]?.status ?? 'offline'
@@ -85,6 +144,21 @@ export default function App() {
     name: '未知 Agent',
     rawName: 'unknown',
     status: 'offline',
+  }
+
+  const getDisplayName = (role) => {
+    if (role === 'user') {
+      return '我'
+    }
+    return activeAgent.name
+  }
+
+  const getAvatarLabel = (role) => {
+    const name = getDisplayName(role)
+    if (!name) {
+      return '·'
+    }
+    return name.trim().slice(0, 1)
   }
 
   useEffect(() => {
@@ -221,8 +295,9 @@ export default function App() {
         message: String(error),
       })
     } finally {
-      setSending(false)
-      streamIdRef.current = null
+    setSending(false)
+    streamIdRef.current = null
+    setDotCount(1)
     }
   }
 
@@ -297,18 +372,42 @@ export default function App() {
                   暂无对话，发送一条消息开始交流。
                 </div>
               ) : (
-                messages.map((item, index) => (
-                  <div
-                    key={`${item.ts ?? 'msg'}-${index}`}
-                    className={`rounded-xl px-3 py-2 ${
-                      item.role === 'user'
-                        ? 'bg-slate-800/70 text-right text-slate-200'
-                        : 'bg-slate-900/70'
-                    }`}
-                  >
-                    {normalizeContent(item.content)}
-                  </div>
-                ))
+                <>
+                  {messages.map((item, index) => {
+                    const isUser = item.role === 'user'
+                    const name = getDisplayName(item.role)
+                    const isStreamingTarget = item.id && item.id === streamIdRef.current
+                    const showThinking = sending && isStreamingTarget && !normalizeContent(item.content)
+                    return (
+                      <div
+                        key={`${item.ts ?? 'msg'}-${index}`}
+                        className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse text-right' : ''}`}
+                      >
+                        <div className="grid h-9 w-9 place-items-center rounded-full bg-slate-700 text-xs font-semibold text-slate-100">
+                          {getAvatarLabel(item.role)}
+                        </div>
+                        <div className={`max-w-[75%] ${isUser ? 'items-end' : ''}`}>
+                          <div className={`mb-1 text-xs text-slate-400 ${isUser ? 'text-right' : ''}`}>
+                            {name}
+                          </div>
+                          <div
+                            className={`rounded-xl px-3 py-2 ${
+                              isUser ? 'bg-slate-800/70 text-slate-200' : 'bg-slate-900/70'
+                            }`}
+                          >
+                            {showThinking ? (
+                              <div className="text-slate-300">思考中{'.'.repeat(dotCount)}</div>
+                            ) : (
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                {normalizeContent(item.content)}
+                              </ReactMarkdown>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </>
               )}
             </div>
           </div>

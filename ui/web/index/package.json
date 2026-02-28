@@ -6,13 +6,15 @@
     "dev": "vite",
     "dev:index": "vite --open /",
     "dev:admin": "vite --open /admin.html",
-    "dev:all": "concurrently -k \"powershell -Command \\\"cd ../../..; python -m datacenter.server\\\"\" \"powershell -Command \\\"Start-Sleep -Seconds 2; npm run dev:index\\\"\"",
+    "dev:all": "concurrently -k \"powershell -Command \\\"cd ../../..; python -m datacenter.server\\\"\" \"powershell -Command \\\"$ErrorActionPreference='SilentlyContinue'; $pids = (Get-NetTCPConnection -LocalPort 5173).OwningProcess; $pids = Select-Object -Unique -InputObject $pids; if ($pids) { Stop-Process -Id $pids -Force }; Start-Sleep -Seconds 2; npm run dev:index\\\"\"",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",

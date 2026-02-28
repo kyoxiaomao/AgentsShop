@@ -6,23 +6,6 @@ __pycache__/
 
 
 node_modules/
+documents/
 
-dist/
-dist-electron/
-release/
-out/
-.vite/
-
-*.log
-npm-debug.log*
-yarn-debug.log*
-pnpm-debug.log*
-
-*.tsbuildinfo
-
-.DS_Store
-Thumbs.db
-
-.vscode/
-.idea/
 

@@ -23,16 +23,17 @@ class BaseAgent(ReActAgent):
         **kwargs: Any,
     ) -> None:
         resolved_formatter = formatter if formatter is not None else create_openai_chat_formatter()
-        resolved_model = (
-            model
-            if model is not None
-            else create_openai_chat_model(
+        if model is not None:
+            resolved_model = model
+        else:
+            if not model_name or not api_key or not base_url:
+                raise ValueError("model_name/api_key/base_url 必须由 Agent 显式传入")
+            resolved_model = create_openai_chat_model(
                 model_name=model_name,
                 api_key=api_key,
                 base_url=base_url,
                 client_kwargs=client_kwargs,
             )
-        )
 
         super().__init__(
             name=name,

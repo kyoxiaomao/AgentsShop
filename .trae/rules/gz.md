@@ -1,0 +1,5 @@
+本项目采用agentscope框架+agentscope-runtime，安装在venv虚拟环境中。
+前端页面采用react+vite+tailwindcss
+桌面客户端采用electron+typescript+phaser+vite
+尽量使用框架内的组件和模块，尽量扫描目录找到相应板块进行代码编辑，不要随意创造新目录，导致重复造轮子。
+当一个代码长度超过100行时，建议将其拆分成多个函数或模块，每个函数或模块负责一个具体的功能。并且对整个代码进行注释，说明每个函数或模块的功能。
