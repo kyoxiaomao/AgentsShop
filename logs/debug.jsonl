@@ -1,15 +1,38 @@
-{"ts": "2026-02-28T08:16:54.062300Z", "event": "server_started", "host": "127.0.0.1", "port": 8000}
-{"ts": "2026-02-28T08:16:59.673155Z", "event": "frontend_ready", "source": "frontend", "url": "http://localhost:5173/"}
-{"ts": "2026-02-28T08:16:59.673155Z", "event": "http_get_messages", "agent_id": "seraAgent", "session_id": "default", "path": "/api/messages?agent_id=seraAgent"}
-{"ts": "2026-02-28T08:16:59.673155Z", "event": "http_get_agents", "path": "/api/agents"}
-{"ts": "2026-02-28T08:16:59.673155Z", "event": "frontend_ready", "source": "frontend", "url": "http://localhost:5173/"}
-{"ts": "2026-02-28T08:16:59.676231Z", "event": "messages_loaded", "agent_id": "seraAgent", "session_id": "default", "count": 0}
-{"ts": "2026-02-28T08:16:59.687010Z", "event": "http_get_messages", "agent_id": "seraAgent", "session_id": "default", "path": "/api/messages?agent_id=seraAgent"}
-{"ts": "2026-02-28T08:16:59.690110Z", "event": "frontend_messages_loaded", "source": "frontend", "agentId": "seraAgent", "count": 0}
-{"ts": "2026-02-28T08:16:59.685474Z", "event": "snapshot_loaded", "agents": 1, "status": 1}
-{"ts": "2026-02-28T08:16:59.696270Z", "event": "http_get_agents", "path": "/api/agents"}
-{"ts": "2026-02-28T08:16:59.694713Z", "event": "messages_loaded", "agent_id": "seraAgent", "session_id": "default", "count": 0}
-{"ts": "2026-02-28T08:16:59.699415Z", "event": "frontend_agents_loaded", "source": "frontend", "agentCount": 1}
-{"ts": "2026-02-28T08:16:59.710209Z", "event": "snapshot_loaded", "agents": 1, "status": 1}
-{"ts": "2026-02-28T08:16:59.710209Z", "event": "frontend_messages_loaded", "source": "frontend", "agentId": "seraAgent", "count": 0}
-{"ts": "2026-02-28T08:16:59.725674Z", "event": "frontend_agents_loaded", "source": "frontend", "agentCount": 1}
+{"ts": "2026-02-28T09:57:21.236928Z", "event": "server_started", "host": "127.0.0.1", "port": 8000}
+{"ts": "2026-02-28T09:57:26.200492Z", "event": "frontend_ready", "source": "frontend", "url": "http://localhost:5173/"}
+{"ts": "2026-02-28T09:57:26.200492Z", "event": "frontend_ready", "source": "frontend", "url": "http://localhost:5173/"}
+{"ts": "2026-02-28T09:57:26.200492Z", "event": "http_get_messages", "agent_id": "seraAgent", "session_id": "default", "path": "/api/messages?agent_id=seraAgent"}
+{"ts": "2026-02-28T09:57:26.200492Z", "event": "http_get_agents", "path": "/api/agents"}
+{"ts": "2026-02-28T09:57:26.201490Z", "event": "messages_loaded", "agent_id": "seraAgent", "session_id": "default", "count": 0}
+{"ts": "2026-02-28T09:57:26.203609Z", "event": "http_get_messages", "agent_id": "seraAgent", "session_id": "default", "path": "/api/messages?agent_id=seraAgent"}
+{"ts": "2026-02-28T09:57:26.204614Z", "event": "messages_loaded", "agent_id": "seraAgent", "session_id": "default", "count": 0}
+{"ts": "2026-02-28T09:57:26.205612Z", "event": "frontend_messages_loaded", "source": "frontend", "agentId": "seraAgent", "count": 0}
+{"ts": "2026-02-28T09:57:26.206610Z", "event": "snapshot_loaded", "agents": 1, "status": 1}
+{"ts": "2026-02-28T09:57:26.209704Z", "event": "http_get_agents", "path": "/api/agents"}
+{"ts": "2026-02-28T09:57:26.209704Z", "event": "frontend_messages_loaded", "source": "frontend", "agentId": "seraAgent", "count": 0}
+{"ts": "2026-02-28T09:57:26.210687Z", "event": "frontend_agents_loaded", "source": "frontend", "agentCount": 1}
+{"ts": "2026-02-28T09:57:26.214375Z", "event": "snapshot_loaded", "agents": 1, "status": 1}
+{"ts": "2026-02-28T09:57:26.217890Z", "event": "frontend_agents_loaded", "source": "frontend", "agentCount": 1}
+{"ts": "2026-02-28T09:57:40.894611Z", "event": "http_post_chat", "agent_id": "seraAgent", "session_id": "default", "length": 4, "mode": "??"}
+{"ts": "2026-02-28T09:57:40.897799Z", "event": "status_updated", "agent_id": "seraAgent", "status": "busy"}
+{"ts": "2026-02-28T09:57:44.012327Z", "event": "agent_initialized", "agent_id": "seraAgent", "class": "SeraAgent"}
+{"ts": "2026-02-28T09:57:44.013362Z", "event": "agent_reply_start", "agent_id": "seraAgent", "session_id": "default"}
+{"ts": "2026-02-28T09:57:50.633036Z", "event": "agent_reply_end", "agent_id": "seraAgent", "session_id": "default", "length": 46}
+{"ts": "2026-02-28T09:57:50.635554Z", "event": "message_stored", "agent_id": "seraAgent", "session_id": "default", "role": "user", "length": 4}
+{"ts": "2026-02-28T09:57:50.637957Z", "event": "markdown_written", "agent_id": "seraAgent", "session_id": "default", "role": "user", "path": "D:\\AgentsShop\\agents\\queen\\Queen_Sera\\message\\session-default.md"}
+{"ts": "2026-02-28T09:57:50.642148Z", "event": "message_stored", "agent_id": "seraAgent", "session_id": "default", "role": "assistant", "length": 46}
+{"ts": "2026-02-28T09:57:50.645133Z", "event": "markdown_written", "agent_id": "seraAgent", "session_id": "default", "role": "assistant", "path": "D:\\AgentsShop\\agents\\queen\\Queen_Sera\\message\\session-default.md"}
+{"ts": "2026-02-28T09:57:50.654334Z", "event": "status_updated", "agent_id": "seraAgent", "status": "idle"}
+{"ts": "2026-02-28T09:57:50.656299Z", "event": "messages_loaded", "agent_id": "seraAgent", "session_id": "default", "count": 2}
+{"ts": "2026-02-28T09:57:50.657834Z", "event": "http_post_chat_done", "agent_id": "seraAgent", "session_id": "default", "messages": 2}
+{"ts": "2026-02-28T09:58:05.086758Z", "event": "http_post_chat", "agent_id": "seraAgent", "session_id": "default", "length": 4, "mode": "??"}
+{"ts": "2026-02-28T09:58:05.097798Z", "event": "status_updated", "agent_id": "seraAgent", "status": "busy"}
+{"ts": "2026-02-28T09:58:05.099798Z", "event": "agent_reply_start", "agent_id": "seraAgent", "session_id": "default"}
+{"ts": "2026-02-28T09:58:16.328897Z", "event": "agent_reply_end", "agent_id": "seraAgent", "session_id": "default", "length": 32}
+{"ts": "2026-02-28T09:58:16.329431Z", "event": "message_stored", "agent_id": "seraAgent", "session_id": "default", "role": "user", "length": 4}
+{"ts": "2026-02-28T09:58:16.331412Z", "event": "markdown_written", "agent_id": "seraAgent", "session_id": "default", "role": "user", "path": "D:\\AgentsShop\\agents\\queen\\Queen_Sera\\message\\session-default.md"}
+{"ts": "2026-02-28T09:58:16.332413Z", "event": "message_stored", "agent_id": "seraAgent", "session_id": "default", "role": "assistant", "length": 32}
+{"ts": "2026-02-28T09:58:16.333412Z", "event": "markdown_written", "agent_id": "seraAgent", "session_id": "default", "role": "assistant", "path": "D:\\AgentsShop\\agents\\queen\\Queen_Sera\\message\\session-default.md"}
+{"ts": "2026-02-28T09:58:16.338932Z", "event": "status_updated", "agent_id": "seraAgent", "status": "idle"}
+{"ts": "2026-02-28T09:58:16.339934Z", "event": "messages_loaded", "agent_id": "seraAgent", "session_id": "default", "count": 4}
+{"ts": "2026-02-28T09:58:16.342932Z", "event": "status_updated", "agent_id": "seraAgent", "status": "offline"}

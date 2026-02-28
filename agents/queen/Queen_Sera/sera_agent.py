@@ -5,7 +5,8 @@ from agents.base import BaseAgent
 from models.llm_adapter import (
     create_dashscope_chat_model,
     create_openai_chat_formatter,
-    create_openai_chat_model,
+    create_openai_chat_client,
+    create_openai_task_model,
     iter_openai_stream_deltas,
     openai_chat_once_with_timing,
 )
@@ -57,7 +58,7 @@ class SeraAgent(BaseAgent):
                 stream_tool_parsing=False,
             )
         else:
-            model = create_openai_chat_model(
+            model = create_openai_task_model(
                 model_name=model_name,
                 api_key=api_key,
                 base_url=base_url,
@@ -97,9 +98,7 @@ class SeraAgent(BaseAgent):
             {"role": "system", "content": self._sys_prompt},
             {"role": "user", "content": user_content},
         ]
-        from models.llm_adapter import create_openai_client
-
-        client = create_openai_client(base_url=self._direct_base_url, api_key=self._direct_api_key)
+        client = create_openai_chat_client(base_url=self._direct_base_url, api_key=self._direct_api_key)
         return iter_openai_stream_deltas(
             client=client,
             model_name=self._direct_model_name,

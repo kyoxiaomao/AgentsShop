@@ -69,6 +69,7 @@ export default function App() {
   const [statusMap, setStatusMap] = useState({})
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
+  const [inputMode, setInputMode] = useState('聊天')
   const [sending, setSending] = useState(false)
   const [dotCount, setDotCount] = useState(1)
   const streamIdRef = useRef(null)
@@ -231,6 +232,7 @@ export default function App() {
         body: JSON.stringify({
           agent_id: agentId,
           content,
+          mode: inputMode,
         }),
       })
       if (!res.body) {
@@ -413,6 +415,15 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            <select
+              className="h-11 rounded-xl border border-slate-800 bg-slate-950/60 px-3 text-sm text-slate-100 outline-none ring-0 transition focus:border-slate-500"
+              value={inputMode}
+              onChange={(event) => setInputMode(event.target.value)}
+            >
+              <option value="聊天">聊天</option>
+              <option value="任务">任务</option>
+              <option value="工具">工具</option>
+            </select>
             <input
               className="h-11 flex-1 rounded-xl border border-slate-800 bg-slate-950/60 px-4 text-sm text-slate-100 outline-none ring-0 transition focus:border-slate-500"
               placeholder="请输入信息"

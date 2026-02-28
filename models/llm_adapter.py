@@ -13,7 +13,7 @@ except Exception:
 
 # ===== LLM推理模型开始 =====
 
-def create_openai_client(
+def create_openai_chat_client(
     *,
     base_url: str,
     api_key: str,
@@ -55,7 +55,7 @@ def openai_chat_once_with_timing(
     request_kwargs: Optional[dict[str, Any]] = None,
 ) -> tuple[dict[str, Any], str]:
     start = time.monotonic()
-    client = create_openai_client(base_url=base_url, api_key=api_key, client_kwargs=client_kwargs)
+    client = create_openai_chat_client(base_url=base_url, api_key=api_key, client_kwargs=client_kwargs)
 
     chunks = 0
     first_chunk_ms = None
@@ -96,7 +96,7 @@ def openai_chat_once_with_timing(
 
 # ===== LLM对话模型开始 =====
 
-def create_openai_chat_model(
+def create_openai_task_model(
     *,
     model_name: str,
     api_key: str,
@@ -145,4 +145,8 @@ def create_openai_chat_formatter() -> OpenAIChatFormatter:
 
 
 # ===== LLM对话模型结束 =====
+
+
+create_openai_client = create_openai_chat_client
+create_openai_chat_model = create_openai_task_model
 

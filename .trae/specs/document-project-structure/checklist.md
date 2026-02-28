@@ -1,0 +1,5 @@
+- [x] README.MD 在适配器说明后新增“项目结构与目录说明”章节
+- [x] 目录树覆盖关键目录（agents/datacenter/models/ui/docs/logs）且排除噪声目录细节
+- [x] 每个关键目录都有职责说明与入口文件指引
+- [x] 启动路径/脚本说明准确（start-dev.ps1 与 ui/web 的 dev:all）
+- [x] 不修改 README 现有适配器说明内容（L1-36 语义与结构保持）

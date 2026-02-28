@@ -4,7 +4,7 @@ from agentscope.agent import ReActAgent
 from agentscope.formatter import OpenAIChatFormatter
 from agentscope.model import OpenAIChatModel
 
-from models.llm_adapter import create_openai_chat_formatter, create_openai_chat_model
+from models.llm_adapter import create_openai_chat_formatter, create_openai_task_model
 
 
 class BaseAgent(ReActAgent):
@@ -28,7 +28,7 @@ class BaseAgent(ReActAgent):
         else:
             if not model_name or not api_key or not base_url:
                 raise ValueError("model_name/api_key/base_url 必须由 Agent 显式传入")
-            resolved_model = create_openai_chat_model(
+            resolved_model = create_openai_task_model(
                 model_name=model_name,
                 api_key=api_key,
                 base_url=base_url,
