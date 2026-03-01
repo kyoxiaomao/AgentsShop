@@ -1,7 +1,5 @@
-from .llm_adapter import create_openai_chat_client, create_openai_chat_formatter, create_openai_task_model
+from .llm_adapter import iter_openai_stream_deltas
 
 __all__ = [
-    "create_openai_chat_client",
-    "create_openai_chat_formatter",
-    "create_openai_task_model",
+    "iter_openai_stream_deltas",
 ]

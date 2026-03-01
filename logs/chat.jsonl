@@ -1,4 +1,0 @@
-{"ts": "2026-02-28T09:57:50.639956Z", "agent_id": "seraAgent", "session_id": "default", "role": "user", "content": "ping"}
-{"ts": "2026-02-28T09:57:50.646132Z", "agent_id": "seraAgent", "session_id": "default", "role": "assistant", "content": "**Pong! 🏓**\n\n你好！我是塞瑞（Sera），已就绪。\n\n请问有什么我可以帮助你的？"}
-{"ts": "2026-02-28T09:58:16.331412Z", "agent_id": "seraAgent", "session_id": "default", "role": "user", "content": "ping"}
-{"ts": "2026-02-28T09:58:16.334412Z", "agent_id": "seraAgent", "session_id": "default", "role": "assistant", "content": "**Pong.**\n\n连接稳定，随时待命。请问需要执行什么操作？"}

@@ -1,12 +1,11 @@
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
-
-$root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$webIndex = Join-Path $root "ui\web\index"
-
-Push-Location $webIndex
+Push-Location "$PSScriptRoot\ui\desktop"
+$debugLogPath = "$PSScriptRoot\ui\logs\debug.jsonl"
+if (Test-Path $debugLogPath) {
+  Clear-Content $debugLogPath
+}
 try {
-  npm run dev:all
+  Remove-Item Env:\ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
+  npx concurrently -k "vite" "wait-on http://localhost:5173 && electron ."
 } finally {
   Pop-Location
 }

@@ -1,69 +1,109 @@
-const { app, BrowserWindow, ipcMain, Menu, Tray, screen } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, Tray, screen, shell } = require('electron')
+const fs = require('node:fs')
 const path = require('node:path')
 
-let mainWindow = null
+// 窗口实例
+let petWindow = null
+let appWindow = null
 let tray = null
+
+// ==================== 工具函数 ====================
+
+function getFullScreenBounds() {
+  const primary = screen.getPrimaryDisplay()
+  return primary.bounds // 使用完整屏幕尺寸，包括任务栏区域
+}
 
 function getWorkArea() {
   const primary = screen.getPrimaryDisplay()
   return primary.workArea
 }
 
-function getDefaultWindowBounds() {
-  const workArea = getWorkArea()
-  return {
-    x: workArea.x,
-    y: workArea.y,
-    width: workArea.width,
-    height: workArea.height,
-  }
-}
-
 function getTrayIconPath() {
   return path.join(app.getAppPath(), 'public', 'assets', 'ant-idle.png')
 }
 
-function createTray() {
-  const iconPath = getTrayIconPath()
-  tray = new Tray(iconPath)
-  tray.setToolTip('Deskant')
+function isDev() {
+  return process.env.NODE_ENV === 'development' || !app.isPackaged
+}
 
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: '显示/隐藏',
-      click: () => {
-        if (!mainWindow) return
-        if (mainWindow.isVisible()) mainWindow.hide()
-        else mainWindow.show()
-      },
-    },
-    { type: 'separator' },
-    { label: '退出', click: () => app.quit() },
-  ])
-  tray.setContextMenu(contextMenu)
+function getDevServerUrl() {
+  return 'http://localhost:5173'
+}
 
-  tray.on('double-click', () => {
-    if (!mainWindow) return
-    mainWindow.show()
+function getLogFilePath() {
+  const logDir = path.resolve(app.getAppPath(), '..', 'logs')
+  fs.mkdirSync(logDir, { recursive: true })
+  return path.join(logDir, 'debug.jsonl')
+}
+
+function clearDebugLog() {
+  try {
+    fs.writeFileSync(getLogFilePath(), '')
+  } catch {}
+}
+
+function logEvent(event, data = {}) {
+  try {
+    const payload = {
+      ts: new Date().toISOString(),
+      pid: process.pid,
+      ppid: process.ppid,
+      event,
+      data,
+    }
+    fs.appendFileSync(getLogFilePath(), `${JSON.stringify(payload)}\n`)
+  } catch {}
+}
+
+function attachWindowLogs(win, name) {
+  if (!win) return
+  const id = win.id
+  win.on('ready-to-show', () => logEvent('window:ready-to-show', { name, id }))
+  win.on('show', () => logEvent('window:show', { name, id }))
+  win.on('hide', () => logEvent('window:hide', { name, id }))
+  win.on('close', () => logEvent('window:close', { name, id }))
+  win.on('closed', () => logEvent('window:closed', { name, id }))
+  win.on('unresponsive', () => logEvent('window:unresponsive', { name, id }))
+  win.on('responsive', () => logEvent('window:responsive', { name, id }))
+  win.webContents?.on('render-process-gone', (_e, details) => {
+    logEvent('window:render-process-gone', { name, id, details })
+  })
+  win.webContents?.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL) => {
+    logEvent('window:did-fail-load', { name, id, errorCode, errorDescription, validatedURL })
   })
 }
 
-function loadRenderer(win) {
-  const devServerUrl = process.env.VITE_DEV_SERVER_URL
-  if (devServerUrl) {
-    win.loadURL(devServerUrl)
+// ==================== 窗口加载 ====================
+
+function loadRenderer(win, entry) {
+  if (isDev()) {
+    // 开发模式：加载 Vite 开发服务器
+    const url = `${getDevServerUrl()}/${entry}.html`
+    win.loadURL(url)
     return
   }
 
-  const indexHtml = path.join(app.getAppPath(), 'dist', 'renderer', 'index.html')
+  // 生产模式：加载打包后的文件
+  const indexHtml = path.join(app.getAppPath(), 'dist', entry, 'index.html')
   win.loadFile(indexHtml)
 }
 
-function createMainWindow() {
-  const bounds = getDefaultWindowBounds()
+// ==================== 桌宠窗口 ====================
 
-  mainWindow = new BrowserWindow({
-    ...bounds,
+function createPetWindow() {
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.show()
+    return petWindow
+  }
+
+  const bounds = getFullScreenBounds()
+
+  petWindow = new BrowserWindow({
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
     frame: false,
     transparent: true,
     resizable: false,
@@ -73,6 +113,7 @@ function createMainWindow() {
     alwaysOnTop: true,
     skipTaskbar: true,
     backgroundColor: '#00000000',
+    show: false, // 先不显示
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -81,18 +122,156 @@ function createMainWindow() {
     },
   })
 
-  mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  mainWindow.setIgnoreMouseEvents(true, { forward: true })
-  loadRenderer(mainWindow)
+  logEvent('window:create', { name: 'pet', id: petWindow.id })
+  attachWindowLogs(petWindow, 'pet')
+  petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  petWindow.setIgnoreMouseEvents(true, { forward: true })
+  
+  // 窗口准备好后再显示
+  petWindow.once('ready-to-show', () => {
+    petWindow.show()
+  })
+  
+  loadRenderer(petWindow, 'index')
 
-  mainWindow.on('closed', () => {
-    mainWindow = null
+  petWindow.on('closed', () => {
+    logEvent('window:ref-cleared', { name: 'pet', id: petWindow?.id ?? null })
+    petWindow = null
+  })
+
+  return petWindow
+}
+
+function showPetWindow() {
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.show()
+  }
+}
+
+function hidePetWindow() {
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.hide()
+  }
+}
+
+// ==================== 应用窗口 ====================
+
+function createAppWindow() {
+  if (appWindow && !appWindow.isDestroyed()) {
+    appWindow.show()
+    appWindow.focus()
+    return appWindow
+  }
+
+  const bounds = getFullScreenBounds()
+  const width = Math.min(1280, bounds.width * 0.8)
+  const height = Math.min(800, bounds.height * 0.8)
+  const x = bounds.x + (bounds.width - width) / 2
+  const y = bounds.y + (bounds.height - height) / 2
+
+  appWindow = new BrowserWindow({
+    x: Math.round(x),
+    y: Math.round(y),
+    width: Math.round(width),
+    height: Math.round(height),
+    frame: true,
+    transparent: false,
+    resizable: true,
+    maximizable: true,
+    minimizable: true,
+    hasShadow: true,
+    alwaysOnTop: false,
+    skipTaskbar: false,
+    backgroundColor: '#0f172a',
+    autoHideMenuBar: true, // 隐藏菜单栏
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  })
+
+  logEvent('window:create', { name: 'app', id: appWindow.id })
+  attachWindowLogs(appWindow, 'app')
+  loadRenderer(appWindow, 'app')
+
+  appWindow.on('close', (e) => {
+    if (app.isQuitting) return
+    logEvent('appWindow:close.prevented', { isQuitting: app.isQuitting })
+    e.preventDefault()
+    hideAppWindow()
+  })
+
+  appWindow.on('closed', () => {
+    logEvent('window:ref-cleared', { name: 'app', id: appWindow?.id ?? null })
+    appWindow = null
+  })
+
+  return appWindow
+}
+
+function showAppWindow() {
+  if (appWindow && !appWindow.isDestroyed()) {
+    appWindow.show()
+    appWindow.focus()
+  } else {
+    createAppWindow()
+  }
+}
+
+function hideAppWindow() {
+  if (appWindow && !appWindow.isDestroyed()) {
+    appWindow.hide()
+  }
+}
+
+// ==================== 托盘 ====================
+
+function createTray() {
+  const iconPath = getTrayIconPath()
+  tray = new Tray(iconPath)
+  tray.setToolTip('AgentShop')
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '显示桌宠',
+      click: () => showPetWindow(),
+    },
+    {
+      label: '打开控制台',
+      click: () => showAppWindow(),
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => {
+        logEvent('tray:quit')
+        app.isQuitting = true
+        logEvent('app:quit.requested', { source: 'tray' })
+        app.quit()
+      },
+    },
+  ])
+  tray.setContextMenu(contextMenu)
+
+  tray.on('double-click', () => {
+    showAppWindow()
   })
 }
 
-function registerIpc() {
-  ipcMain.on('app:quit', () => app.quit())
+// ==================== IPC 注册 ====================
 
+function registerIpc() {
+  // 应用控制
+  ipcMain.on('app:quit', (e) => {
+    app.isQuitting = true
+    logEvent('ipc:app:quit', { senderId: e.sender?.id, url: e.sender?.getURL?.() })
+    logEvent('app:quit.requested', { source: 'ipc:app:quit' })
+    app.quit()
+  })
+
+  // 状态获取
   ipcMain.handle('app:getStatus', () => {
     return {
       platform: process.platform,
@@ -104,32 +283,111 @@ function registerIpc() {
     }
   })
 
-  ipcMain.handle('window:resetPosition', () => {
-    if (!mainWindow) return null
-    const bounds = getDefaultWindowBounds()
-    mainWindow.setBounds(bounds, false)
+  // 桌宠窗口控制
+  ipcMain.handle('pet:resetPosition', () => {
+    if (!petWindow || petWindow.isDestroyed()) return null
+    const bounds = getFullScreenBounds()
+    petWindow.setBounds({
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+    }, false)
     return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
   })
 
-  ipcMain.handle('window:setIgnoreMouseEvents', (_e, ignore) => {
-    if (!mainWindow) return null
+  ipcMain.handle('pet:setIgnoreMouseEvents', (_e, ignore) => {
+    if (!petWindow || petWindow.isDestroyed()) return null
     const value = Boolean(ignore)
-    if (value) mainWindow.setIgnoreMouseEvents(true, { forward: true })
-    else mainWindow.setIgnoreMouseEvents(false)
+    if (value) petWindow.setIgnoreMouseEvents(true, { forward: true })
+    else petWindow.setIgnoreMouseEvents(false)
     return value
+  })
+
+  ipcMain.on('pet:openApp', () => {
+    logEvent('ipc:pet:openApp')
+    showAppWindow()
+  })
+
+  ipcMain.on('pet:show', () => {
+    logEvent('ipc:pet:show')
+    showPetWindow()
+  })
+
+  ipcMain.on('pet:hide', () => {
+    logEvent('ipc:pet:hide')
+    hidePetWindow()
+  })
+
+  // 应用窗口控制
+  ipcMain.on('app:show', () => {
+    logEvent('ipc:app:show')
+    showAppWindow()
+  })
+
+  ipcMain.on('app:hide', () => {
+    logEvent('ipc:app:hide')
+    hideAppWindow()
+  })
+
+  // 外部链接
+  ipcMain.on('shell:openExternal', (_e, url) => {
+    shell.openExternal(url)
   })
 }
 
+// ==================== 应用生命周期 ====================
+
 app.whenReady().then(() => {
-  createMainWindow()
+  clearDebugLog()
+  logEvent('app:ready', { isDev: isDev() })
+  // 创建桌宠窗口（常驻）
+  createPetWindow()
+
+  // 创建托盘
   createTray()
+
+  // 注册 IPC
   registerIpc()
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
+    logEvent('app:activate', { windowCount: BrowserWindow.getAllWindows().length })
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createPetWindow()
+    }
   })
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  logEvent('app:window-all-closed', { windowCount: BrowserWindow.getAllWindows().length })
+  // macOS 除外，其他平台关闭所有窗口时退出
+  if (process.platform !== 'darwin') {
+    logEvent('app:quit.requested', { source: 'window-all-closed' })
+    app.quit()
+  }
+})
+
+app.on('before-quit', () => {
+  app.isQuitting = true
+  logEvent('app:before-quit', { isQuitting: app.isQuitting })
+})
+
+app.on('quit', (_event, exitCode) => {
+  logEvent('app:quit', { exitCode })
+})
+
+process.on('beforeExit', (code) => {
+  logEvent('process:beforeExit', { code })
+})
+
+process.on('exit', (code) => {
+  logEvent('process:exit', { code })
+})
+
+process.on('uncaughtException', (error) => {
+  logEvent('process:uncaughtException', { message: error?.message, stack: error?.stack })
+})
+
+process.on('unhandledRejection', (reason) => {
+  logEvent('process:unhandledRejection', { reason: String(reason) })
 })

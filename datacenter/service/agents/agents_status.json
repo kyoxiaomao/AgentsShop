@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "agents": [
+    {
+      "id": "seraAgent",
+      "name": "seraAgent",
+      "cn_name": "塞瑞",
+      "enabled": true
+    }
+  ],
+  "status": {
+    "seraAgent": {
+      "status": "idle",
+      "updated_at": "2026-02-28T15:21:53.007216Z"
+    }
+  }
+}

@@ -17,6 +17,7 @@ AgentsShop/
 │  └─ desktop/                  # Desktop：Electron + React + Phaser + Vite
 ├─ docs/                        # 文档与备忘
 ├─ logs/                        # 运行日志（chat/debug 等）
+├─ msgdata/                     # 聊天消息落盘（jsonl）
 ├─ .trae/                       # Trae 规则与规格文档（IDE/工作流相关）
 ├─ .env / .env.example          # 环境变量示例（本仓库包含真实 .env，请注意安全）
 ├─ .gitignore
@@ -62,16 +63,10 @@ AgentsShop/
 - 负责从 `agents/` 自动发现 Agent，并生成给前端使用的快照（`ui_snapshot.json`）。
 
 **文件清单（按重要程度）**
-- `server.py`：HTTP 服务入口（提供 `/api/*`，并在内部动态加载 Agent 类来处理对话）
-- `message.py`：消息处理模块（会话消息存取、markdown 落盘、chat/debug 日志写入等集中在此）
-- `service.py`：Agent 发现、状态读取与 UI 快照构建逻辑（生成 `ui_snapshot.json`）
-- `models.py`：数据结构定义（AgentProfile / AgentStatus）
-- `cli.py`：命令行入口（用于构建 UI 快照）
-- `registry.json`：Agent 列表兜底配置（当文件扫描发现不到 Agent 时使用）
-- `ui_snapshot.json`：给前端读取的快照输出（agents 列表 + status）
-- `chat_store.json`：会话/消息存储（JSON）
-- `status.json`：Agent 运行状态存储（JSON）
-- `__init__.py`：对外导出 `get_agents/get_status_map/build_ui_snapshot/snapshot_path`
+- `server.py`：HTTP 服务入口（路由请求并调用 service 层处理）
+- `service/agents/service_agents.py`：Agent 注册与实例获取
+- `service/message/message.py`：聊天消息转发、流式回复与消息落盘
+- `service/agents/agents_status.json`：Agent 与状态的静态快照
 
 ### models（复用能力模块）
 
@@ -82,7 +77,7 @@ AgentsShop/
 - 放置各个 Agent 可复用的能力模块；目前包含 `llm_adapter` 适配层实现。
 
 **文件清单（按重要程度）**
-- `llm_adapter.py`：LLM 适配层实现（聊天：OpenAI SDK Client；任务/工具：agentscope OpenAIChatModel；并提供流式增量解析与简单耗时统计）
+- `llm_adapter.py`：LLM 适配层实现（仅保留直连 OpenAI 的流式增量解析）
 - `__init__.py`：包初始化
 
 ### ui/web/index（网页端）
@@ -173,41 +168,3 @@ AgentsShop/
 
 
 
-
-<!-- ===== 适配器说明开始 ===== -->
-
-# AgentsShop
-
-## llm_adapter（适配器说明）
-
-**文件路径**
-- `d:\AgentsShop\README.MD`（本说明入口）
-- `d:\AgentsShop\models\llm_adapter.py`（适配器实现）
-
-**模块定位**
-- 统一封装 LLM 接入的“创建客户端 / 创建对话模型 / 流式输出解析 / 简单耗时统计”等通用能力，供各个 Agent 复用。
-- 当前适配器不再读取任何环境变量：模型配置（base_url / api_key / model_name / 额外参数等）由各个 Agent 在调用时传入。
-- datacenter 会根据前端 mode（聊天/任务/工具）选择：聊天走 OpenAI SDK Client，任务/工具走 agentscope OpenAIChatModel。
-
-## LLM 推理（OpenAI SDK 方向）
-
-**作用**
-- 创建 OpenAI Client：create_openai_chat_client（支持传入 base_url、api_key 及可选 client_kwargs）。
-- 提供流式输出的增量解析（将 stream 返回的 delta 内容按文本片段迭代输出）。
-- 提供单次对话调用的耗时/阶段统计（例如首包、首字、总耗时等）并汇总最终回答文本。
-
-**典型使用场景**
-- 需要流式输出（stream=True）且希望在上层做打印、拼接或工具解析的 Agent。
-- 需要简单观测调用耗时（首包/首字）用于体验或性能对比的 Agent。
-
-## LLM 对话模型（agentscope 方向）
-
-**作用**
-- 创建 agentscope 的 OpenAIChatModel：create_openai_task_model（可传 base_url、api_key、generate_kwargs、stream_tool_parsing 等）。
-- 创建 agentscope 的 DashScopeChatModel（可传 api_key、stream、enable_thinking、generate_kwargs、base_http_api_url 等）。
-- 创建 OpenAIChatFormatter，用于与 agentscope 的消息格式化流程对接。
-
-**典型使用场景**
-- 以 agentscope 的 Model/Formatter 体系来驱动对话与工具调用（包含流式 tool parsing）的 Agent。
-
-<!-- ===== 适配器说明结束 ===== -->
