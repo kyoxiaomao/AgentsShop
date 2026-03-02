@@ -39,7 +39,7 @@ export default function ControlButton({
     <div
       ref={wrapRef}
       data-interactive="control"
-      className="absolute right-5 bottom-5 w-14 h-14 pointer-events-auto group"
+      className="absolute right-5 bottom-[70px] w-14 h-14 pointer-events-auto group"
     >
       <MenuPanel
         open={open}

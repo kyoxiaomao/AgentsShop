@@ -28,8 +28,8 @@ export class MainScene extends Scene {
     const { width, height } = this.scale
 
     // Create Ant Sprite
-    // Start at bottom-left area
-    this.ant = this.add.sprite(0, height - 12, 'ant-walk')
+    // Start at bottom-left area. 上移 25 与 main.js 中 petWindow 的 y 偏移保持一致，避免被截断
+    this.ant = this.add.sprite(0, height - 50, 'ant-walk')
     this.ant.setOrigin(0.5, 1) // Anchor at bottom center
 
     this.ant.displayWidth = this.baseAntWidth

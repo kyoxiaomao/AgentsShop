@@ -1,3 +1,6 @@
+# 启动前先结束可能残留的 electron/AgentShop 进程
+& "$PSScriptRoot\kill-electron.ps1"
+
 Push-Location "$PSScriptRoot\ui\desktop"
 $debugLogPath = "$PSScriptRoot\ui\logs\debug.jsonl"
 if (Test-Path $debugLogPath) {

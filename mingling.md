@@ -18,6 +18,7 @@ pip install agentscope-runtime -i https://pypi.tuna.tsinghua.edu.cn/simple
 ### 方式一：使用启动脚本（推荐）
 # 在项目根目录下运行：
 .\start-dev.ps1
+.\kill-electron
 
 ### 方式二：手动启动
 # 1. 进入 desktop 目录

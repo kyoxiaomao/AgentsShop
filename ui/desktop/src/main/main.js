@@ -14,6 +14,21 @@ function getFullScreenBounds() {
   return primary.bounds // 使用完整屏幕尺寸，包括任务栏区域
 }
 
+const PET_WINDOW_Y_OFFSET = 25
+const PET_WINDOW_FIXED_WIDTH = 1920
+const PET_WINDOW_FIXED_HEIGHT = 1080
+const PET_WINDOW_BOTTOM_EXTRA = 50
+
+function getPetWindowBounds() {
+  const bounds = getFullScreenBounds()
+  return {
+    x: bounds.x,
+    y: bounds.y - PET_WINDOW_Y_OFFSET,
+    width: PET_WINDOW_FIXED_WIDTH,
+    height: PET_WINDOW_FIXED_HEIGHT + PET_WINDOW_BOTTOM_EXTRA,
+  }
+}
+
 function getWorkArea() {
   const primary = screen.getPrimaryDisplay()
   return primary.workArea
@@ -100,16 +115,15 @@ function createPetWindow() {
   const bounds = getFullScreenBounds()
 
   petWindow = new BrowserWindow({
-    x: bounds.x,
-    y: bounds.y,
-    width: bounds.width,
-    height: bounds.height,
     frame: false,
     transparent: true,
     resizable: false,
     maximizable: false,
     minimizable: false,
+    fullscreen: true,
+    fullscreenable: true,
     hasShadow: false,
+    focusable: true,// false不可聚焦,系统标题栏不会显示
     alwaysOnTop: true,
     skipTaskbar: true,
     backgroundColor: '#00000000',
@@ -124,6 +138,13 @@ function createPetWindow() {
 
   logEvent('window:create', { name: 'pet', id: petWindow.id })
   attachWindowLogs(petWindow, 'pet')
+  petWindow.setAlwaysOnTop(true, 'screen-saver')
+  petWindow.setBounds({
+    x: bounds.x,
+    y: bounds.y - PET_WINDOW_Y_OFFSET,
+    width: bounds.width,
+    height: bounds.height + PET_WINDOW_Y_OFFSET,
+  }, false)
   petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   petWindow.setIgnoreMouseEvents(true, { forward: true })
   
@@ -172,6 +193,7 @@ function createAppWindow() {
   appWindow = new BrowserWindow({
     x: Math.round(x),
     y: Math.round(y),
+    title: 'AgentShop',
     width: Math.round(width),
     height: Math.round(height),
     frame: true,
@@ -286,7 +308,7 @@ function registerIpc() {
   // 桌宠窗口控制
   ipcMain.handle('pet:resetPosition', () => {
     if (!petWindow || petWindow.isDestroyed()) return null
-    const bounds = getFullScreenBounds()
+    const bounds = getPetWindowBounds()
     petWindow.setBounds({
       x: bounds.x,
       y: bounds.y,

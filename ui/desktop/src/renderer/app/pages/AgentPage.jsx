@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { setMessages, addMessage, setSending } from '../store/chatSlice'
+import { setMessages, addMessage, setSending, updateLastMessage } from '../store/chatSlice'
 
 const statusLabels = {
   busy: '忙碌',
@@ -71,6 +71,13 @@ function normalizeContent(value) {
   if (value === null || value === undefined) return ''
   if (typeof value === 'object') return JSON.stringify(value, null, 2)
   return String(value)
+}
+
+function resolveWsUrl() {
+  if (typeof window === 'undefined') return 'ws://127.0.0.1:8000/ws'
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+  const hostname = window.location.hostname || '127.0.0.1'
+  return `${protocol}://${hostname}:8000/ws`
 }
 
 export default function AgentPage() {
@@ -146,61 +153,67 @@ export default function AgentPage() {
     dispatch(addMessage({ role: 'assistant', content: '', ts: new Date().toISOString(), id: tempId }))
 
     try {
-      const res = await fetch('/api/chat/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agent_id: agentId,
-          content,
-          mode: inputMode,
-        }),
-      })
+      const wsUrl = resolveWsUrl()
+      await new Promise((resolve, reject) => {
+        let settled = false
+        let assistantContent = ''
+        const ws = new WebSocket(wsUrl)
 
-      if (!res.body) throw new Error('empty_stream')
+        const settle = (error) => {
+          if (settled) return
+          settled = true
+          if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+            ws.close()
+          }
+          if (error) reject(error)
+          else resolve()
+        }
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
+        ws.onopen = () => {
+          ws.send(
+            JSON.stringify({
+              type: 'chat',
+              agent_id: agentId,
+              session_id: 'default',
+              content,
+              mode: inputMode,
+            })
+          )
+        }
 
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const parts = buffer.split('\n\n')
-        buffer = parts.pop() || ''
-
-        for (const part of parts) {
-          const line = part
-            .split('\n')
-            .map((item) => item.trim())
-            .find((item) => item.startsWith('data:'))
-          if (!line) continue
-
-          const jsonText = line.replace(/^data:\s*/, '')
-          if (!jsonText) continue
-
+        ws.onmessage = (event) => {
           let payload
           try {
-            payload = JSON.parse(jsonText)
+            payload = JSON.parse(event.data)
           } catch {
-            continue
+            return
           }
-
           if (payload.type === 'delta') {
-            // 更新最后一条消息
-            const lastMessage = messages[messages.length - 1]
-            if (lastMessage?.id === tempId) {
-              // 这里需要直接更新，因为 dispatch 是异步的
-              // 简化处理：直接更新 DOM 或使用 ref
-            }
-          } else if (payload.type === 'done') {
+            const text = normalizeContent(payload.content)
+            assistantContent += text
+            dispatch(updateLastMessage({ id: tempId, content: assistantContent }))
+            return
+          }
+          if (payload.type === 'done') {
             if (Array.isArray(payload?.messages)) {
               dispatch(setMessages(payload.messages))
             }
+            settle()
+            return
+          }
+          if (payload.type === 'error') {
+            settle(new Error(payload?.message || 'ws_error'))
           }
         }
-      }
+
+        ws.onerror = () => {
+          settle(new Error('ws_error'))
+        }
+
+        ws.onclose = () => {
+          if (!settled) resolve()
+        }
+      })
     } catch (error) {
       console.error('Chat error:', error)
     } finally {
@@ -309,5 +322,4 @@ export default function AgentPage() {
     </div>
   )
 }
-
 

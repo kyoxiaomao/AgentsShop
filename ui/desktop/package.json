@@ -1,5 +1,5 @@
 {
-  "name": "agentshop-desktop",
+  "name": "package",
   "private": true,
   "version": "0.1.0",
   "main": "src/main/main.js",

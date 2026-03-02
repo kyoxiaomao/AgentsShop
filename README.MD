@@ -59,11 +59,11 @@ AgentsShop/
 - `d:\AgentsShop\datacenter\`
 
 **模块定位**
-- 提供轻量 HTTP API：Agent 列表/状态、消息存取、对话与流式输出。
+- 混合模式后端：HTTP 提供 Agent 列表/状态与消息历史；WebSocket 提供对话流式输出。
 - 负责从 `agents/` 自动发现 Agent，并生成给前端使用的快照（`ui_snapshot.json`）。
 
 **文件清单（按重要程度）**
-- `server.py`：HTTP 服务入口（路由请求并调用 service 层处理）
+- `server.py`：HTTP + WebSocket 服务入口（路由请求并调用 service 层处理）
 - `service/agents/service_agents.py`：Agent 注册与实例获取
 - `service/message/message.py`：聊天消息转发、流式回复与消息落盘
 - `service/agents/agents_status.json`：Agent 与状态的静态快照
@@ -164,7 +164,6 @@ AgentsShop/
 - `specs/document-project-structure/spec.md`：规格文档（本次 README 结构梳理）
 - `specs/document-project-structure/tasks.md`：任务拆分记录
 - `specs/document-project-structure/checklist.md`：验收检查清单
-
 
 
 
