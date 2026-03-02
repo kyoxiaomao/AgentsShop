@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PhaserGame from './game/PhaserGame'
 import ControlButton from './components/ControlButton'
+import StatusPanel from './components/StatusPanel'
 
 // 获取 Electron API
 const electronApi = (() => {
@@ -9,6 +10,12 @@ const electronApi = (() => {
 })()
 
 export default function App() {
+  const view = useMemo(() => {
+    if (typeof window === 'undefined') return 'pet'
+    const params = new URLSearchParams(window.location.search)
+    return params.get('view') || 'pet'
+  }, [])
+  const isStatusView = view === 'status'
   const [speed, setSpeed] = useState(120)
   const [resetSignal, setResetSignal] = useState(0)
   const [interactionLock, setInteractionLock] = useState(false)
@@ -28,13 +35,15 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (isStatusView) return
     setIgnore(true)
-  }, [setIgnore])
+  }, [isStatusView, setIgnore])
 
   // Combined lock state: either React UI lock or Phaser Sprite lock
   const isLocked = interactionLock || phaserLock
 
   useEffect(() => {
+    if (isStatusView) return
     const onMove = (e) => {
       lastPosRef.current = { has: true, x: e.clientX, y: e.clientY }
       if (isLocked) return
@@ -57,9 +66,10 @@ export default function App() {
       window.removeEventListener('mousemove', onMove)
       window.clearTimeout(leaveTimerRef.current)
     }
-  }, [isLocked, setIgnore])
+  }, [isLocked, isStatusView, setIgnore])
 
   useEffect(() => {
+    if (isStatusView) return
     window.clearTimeout(leaveTimerRef.current)
     if (isLocked) {
       setIgnore(false)
@@ -74,7 +84,21 @@ export default function App() {
     const el = document.elementFromPoint(lastPosRef.current.x, lastPosRef.current.y)
     const hit = el && typeof el.closest === 'function' ? el.closest('[data-interactive]') : null
     setIgnore(!hit)
-  }, [isLocked, setIgnore])
+  }, [isLocked, isStatusView, setIgnore])
+
+  if (isStatusView) {
+    return (
+      <div className="w-full h-full relative">
+        <StatusPanel
+          open
+          closeOnBackdrop={false}
+          onClose={() => {
+            electronApi?.pet?.closeStatusWindow?.()
+          }}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="w-full h-full relative">

@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import MenuPanel from './MenuPanel'
-import StatusPanel from './StatusPanel'
-
 // 获取 Electron API
 const electronApi = (() => {
   if (typeof window !== 'undefined' && window.electronApi) return window.electronApi
@@ -11,19 +9,18 @@ const electronApi = (() => {
 export default function ControlButton({
   speed,
   onSpeedChange,
-  onReset,
   onInteractionLockChange,
   petVisible,
   onPetVisibleChange,
 }) {
   const [open, setOpen] = useState(false)
-  const [statusOpen, setStatusOpen] = useState(false)
   const [appVisible, setAppVisible] = useState(false)
+  const [statusVisible, setStatusVisible] = useState(false)
   const wrapRef = useRef(null)
 
   useEffect(() => {
-    onInteractionLockChange?.(open || statusOpen)
-  }, [open, statusOpen, onInteractionLockChange])
+    onInteractionLockChange?.(open)
+  }, [open, onInteractionLockChange])
 
   useEffect(() => {
     const onDocMouseDown = (e) => {
@@ -35,6 +32,19 @@ export default function ControlButton({
     return () => document.removeEventListener('mousedown', onDocMouseDown)
   }, [])
 
+  useEffect(() => {
+    const offOpened = electronApi?.pet?.onStatusWindowOpened?.(() => {
+      setStatusVisible(true)
+    })
+    const offClosed = electronApi?.pet?.onStatusWindowClosed?.(() => {
+      setStatusVisible(false)
+    })
+    return () => {
+      offOpened?.()
+      offClosed?.()
+    }
+  }, [])
+
   return (
     <div
       ref={wrapRef}
@@ -44,7 +54,13 @@ export default function ControlButton({
       <MenuPanel
         open={open}
         onShowStatus={() => {
-          setStatusOpen(true)
+          if (statusVisible) {
+            electronApi?.pet?.closeStatusWindow?.()
+            setStatusVisible(false)
+          } else {
+            electronApi?.pet?.openStatusWindow?.()
+            setStatusVisible(true)
+          }
           setOpen(false)
         }}
         onToggleApp={() => {
@@ -67,11 +83,7 @@ export default function ControlButton({
         }}
         appVisible={appVisible}
         petVisible={petVisible}
-        onReset={() => {
-          onReset?.()
-          electronApi?.pet?.resetWindowPosition?.()
-          setOpen(false)
-        }}
+        statusVisible={statusVisible}
         onQuit={() => {
           setOpen(false)
           electronApi?.quitApp?.()
@@ -99,7 +111,6 @@ export default function ControlButton({
           "
         />
       </button>
-      <StatusPanel open={statusOpen} onClose={() => setStatusOpen(false)} />
     </div>
   )
 }

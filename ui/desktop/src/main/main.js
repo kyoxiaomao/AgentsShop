@@ -5,6 +5,7 @@ const path = require('node:path')
 // 窗口实例
 let petWindow = null
 let appWindow = null
+let statusWindow = null
 let tray = null
 
 // ==================== 工具函数 ====================
@@ -91,16 +92,23 @@ function attachWindowLogs(win, name) {
 
 // ==================== 窗口加载 ====================
 
-function loadRenderer(win, entry) {
+function loadRenderer(win, entry, query = null) {
   if (isDev()) {
-    // 开发模式：加载 Vite 开发服务器
-    const url = `${getDevServerUrl()}/${entry}.html`
-    win.loadURL(url)
+    const url = new URL(`${getDevServerUrl()}/${entry}.html`)
+    if (query) {
+      Object.entries(query).forEach(([key, value]) => {
+        url.searchParams.set(key, String(value))
+      })
+    }
+    win.loadURL(url.toString())
     return
   }
 
-  // 生产模式：加载打包后的文件
   const indexHtml = path.join(app.getAppPath(), 'dist', entry, 'index.html')
+  if (query) {
+    win.loadFile(indexHtml, { query })
+    return
+  }
   win.loadFile(indexHtml)
 }
 
@@ -176,6 +184,77 @@ function hidePetWindow() {
 }
 
 // ==================== 应用窗口 ====================
+
+function createStatusWindow() {
+  if (statusWindow && !statusWindow.isDestroyed()) {
+    statusWindow.show()
+    statusWindow.focus()
+    return statusWindow
+  }
+
+  statusWindow = new BrowserWindow({
+    width: 760,
+    height: 520,
+    minWidth: 640,
+    minHeight: 420,
+    resizable: true,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    alwaysOnTop: false,
+    skipTaskbar: false,
+    backgroundColor: '#0f172a',
+    autoHideMenuBar: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  })
+
+  logEvent('window:create', { name: 'status', id: statusWindow.id })
+  attachWindowLogs(statusWindow, 'status')
+  statusWindow.setMenuBarVisibility(false)
+
+  statusWindow.once('ready-to-show', () => {
+    statusWindow.show()
+  })
+
+  statusWindow.on('show', () => {
+    if (petWindow && !petWindow.isDestroyed()) {
+      petWindow.webContents?.send('pet:statusWindowOpened')
+    }
+  })
+
+  loadRenderer(statusWindow, 'index', { view: 'status' })
+
+  statusWindow.on('closed', () => {
+    logEvent('window:ref-cleared', { name: 'status', id: statusWindow?.id ?? null })
+    if (petWindow && !petWindow.isDestroyed()) {
+      petWindow.webContents?.send('pet:statusWindowClosed')
+    }
+    statusWindow = null
+  })
+
+  return statusWindow
+}
+
+function showStatusWindow() {
+  if (statusWindow && !statusWindow.isDestroyed()) {
+    statusWindow.show()
+    statusWindow.focus()
+  } else {
+    createStatusWindow()
+  }
+}
+
+function closeStatusWindow() {
+  if (statusWindow && !statusWindow.isDestroyed()) {
+    statusWindow.close()
+  }
+}
 
 function createAppWindow() {
   if (appWindow && !appWindow.isDestroyed()) {
@@ -339,6 +418,16 @@ function registerIpc() {
   ipcMain.on('pet:hide', () => {
     logEvent('ipc:pet:hide')
     hidePetWindow()
+  })
+
+  ipcMain.on('pet:openStatusWindow', () => {
+    logEvent('ipc:pet:openStatusWindow')
+    showStatusWindow()
+  })
+
+  ipcMain.on('pet:closeStatusWindow', () => {
+    logEvent('ipc:pet:closeStatusWindow')
+    closeStatusWindow()
   })
 
   // 应用窗口控制

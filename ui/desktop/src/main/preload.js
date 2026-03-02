@@ -31,6 +31,18 @@ contextBridge.exposeInMainWorld('electronApi', {
     resetWindowPosition: () => ipcRenderer.invoke('pet:resetPosition'),
     setIgnoreMouseEvents: (ignore) => ipcRenderer.invoke('pet:setIgnoreMouseEvents', ignore),
     openAppWindow: () => ipcRenderer.send('pet:openApp'),
+    openStatusWindow: () => ipcRenderer.send('pet:openStatusWindow'),
+    closeStatusWindow: () => ipcRenderer.send('pet:closeStatusWindow'),
+    onStatusWindowOpened: (handler) => {
+      const wrapped = (_event) => handler?.()
+      ipcRenderer.on('pet:statusWindowOpened', wrapped)
+      return () => ipcRenderer.removeListener('pet:statusWindowOpened', wrapped)
+    },
+    onStatusWindowClosed: (handler) => {
+      const wrapped = (_event) => handler?.()
+      ipcRenderer.on('pet:statusWindowClosed', wrapped)
+      return () => ipcRenderer.removeListener('pet:statusWindowClosed', wrapped)
+    },
     show: () => ipcRenderer.send('pet:show'),
     hide: () => ipcRenderer.send('pet:hide'),
   },
