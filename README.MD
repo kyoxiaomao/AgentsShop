@@ -109,25 +109,30 @@ AgentsShop/
 - `d:\AgentsShop\ui\desktop\`
 
 **模块定位**
-- Electron + React + Phaser + Vite 的桌面端工程（透明置顶窗口、鼠标穿透/接管、桌宠渲染与交互）。
+- Electron + React + Phaser + Vite 的桌面端工程（桌宠透明置顶、独立状态窗口、应用主窗口、鼠标穿透/交互切换）。
+
+**当前 UI 逻辑**
+- **窗口体系**：`petWindow` 全屏透明置顶；`appWindow` 为普通应用窗口；`statusWindow` 为独立状态面板窗口
+- **状态联动**：打开 `appWindow` 时临时降低 `petWindow` 置顶，隐藏时恢复
+- **鼠标穿透**：默认穿透，角色悬停/拖拽与菜单命中时关闭穿透
 
 **文件清单（按重要程度）**
 - `package.json`：桌面端脚本入口（`dev`：Vite + Electron；`dist/pack`：打包发布）
-- `src/main/main.js`：Electron 主进程入口（创建透明置顶窗口、托盘菜单、IPC、鼠标穿透控制）
+- `src/main/main.js`：Electron 主进程入口（窗口创建、托盘菜单、IPC、鼠标穿透控制）
 - `src/main/preload.js`：Preload（通过 contextBridge 暴露主进程 API 给渲染进程）
 - `src/renderer/main.jsx`：渲染进程入口（挂载 React）
-- `src/renderer/App.jsx`：桌面端主组件（协调 UI 与 Phaser，控制鼠标穿透/交互锁）
-- `src/renderer/env.js`：读取 preload 暴露的 `window.deskant` 并导出给 React 使用
-- `src/renderer/game/PhaserGame.jsx`：Phaser 容器（创建 Phaser.Game，订阅 EventBus 事件）
-- `src/renderer/game/scenes/MainScene.js`：核心场景（桌宠移动/边界/悬停/点击交互，向 EventBus 通知交互锁）
-- `src/renderer/game/EventBus.js`：React ↔ Phaser 的事件总线（Phaser.Events.EventEmitter）
-- `src/renderer/components/ControlButton.jsx`：控制中心入口按钮（打开菜单/状态面板，触发重置/退出）
-- `src/renderer/components/MenuPanel.jsx`：控制菜单（速度调节/重置/退出等）
-- `src/renderer/components/StatusPanel.jsx`：状态面板（调用 Electron API 获取运行信息并展示）
-- `src/renderer/styles/GlobalStyle.js`：全局样式（透明背景、禁滚动等）
-- `src/renderer/global.d.ts`：TypeScript 全局类型声明（window.deskant）
-- `src/renderer/types.js`：小工具函数（目前仅 `noop`）
-- `src/renderer/components/Ant.jsx`：基于 styled-components 的桌宠实现（当前未被主流程引用，可作为备用/实验实现）
+- `src/renderer/pet/App.jsx`：桌宠主组件（协调 UI 与 Phaser，控制鼠标穿透/交互锁）
+- `src/renderer/pet/game/PhaserGame.jsx`：Phaser 容器（创建 Phaser.Game，订阅 EventBus 事件）
+- `src/renderer/pet/game/scenes/MainScene.js`：核心场景（桌宠移动/边界/悬停/拖拽，向 EventBus 通知交互锁）
+- `src/renderer/pet/game/EventBus.js`：React ↔ Phaser 的事件总线（Phaser.Events.EventEmitter）
+- `src/renderer/pet/components/ControlButton.jsx`：控制中心入口按钮（打开菜单/状态面板，打开/隐藏应用）
+- `src/renderer/pet/components/MenuPanel.jsx`：控制菜单（速度调节、桌宠显示、应用/状态面板、退出）
+- `src/renderer/pet/components/StatusPanel.jsx`：状态面板（Tab 视图）
+- `src/renderer/pet/index.css`：桌宠基础样式
+- `src/renderer/app/App.jsx`：应用窗口入口
+- `src/renderer/app/components`：应用窗口布局、导航与 Sidebar 组件
+- `src/renderer/app/pages`：应用窗口页面（管理页与 Agent 页）
+- `src/renderer/app/store`：Redux store 与切片
 - `public/assets/ant-idle.png`：桌宠默认资源（主进程托盘图标与 Phaser 贴图）
 - `public/assets/.gitkeep`：占位文件，确保 assets 目录被 Git 跟踪
 - `index.html`：渲染进程 HTML 入口（加载 `/src/renderer/main.jsx`）
@@ -164,6 +169,5 @@ AgentsShop/
 - `specs/document-project-structure/spec.md`：规格文档（本次 README 结构梳理）
 - `specs/document-project-structure/tasks.md`：任务拆分记录
 - `specs/document-project-structure/checklist.md`：验收检查清单
-
 
 

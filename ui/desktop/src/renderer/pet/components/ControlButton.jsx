@@ -45,6 +45,19 @@ export default function ControlButton({
     }
   }, [])
 
+  useEffect(() => {
+    const offShown = electronApi?.app?.onShow?.(() => {
+      setAppVisible(true)
+    })
+    const offHidden = electronApi?.app?.onHide?.(() => {
+      setAppVisible(false)
+    })
+    return () => {
+      offShown?.()
+      offHidden?.()
+    }
+  }, [])
+
   return (
     <div
       ref={wrapRef}
@@ -69,7 +82,6 @@ export default function ControlButton({
             setAppVisible(false)
           } else {
             electronApi?.pet?.openAppWindow?.()
-            setAppVisible(true)
           }
           setOpen(false)
         }}

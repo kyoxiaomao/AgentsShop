@@ -285,6 +285,7 @@ function createAppWindow() {
     skipTaskbar: false,
     backgroundColor: '#0f172a',
     autoHideMenuBar: true, // 隐藏菜单栏
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -296,6 +297,23 @@ function createAppWindow() {
   logEvent('window:create', { name: 'app', id: appWindow.id })
   attachWindowLogs(appWindow, 'app')
   loadRenderer(appWindow, 'app')
+
+  appWindow.once('ready-to-show', () => {
+    appWindow.show()
+    appWindow.focus()
+  })
+
+  appWindow.on('show', () => {
+    if (petWindow && !petWindow.isDestroyed()) {
+      petWindow.webContents?.send('app:shown')
+    }
+  })
+
+  appWindow.on('hide', () => {
+    if (petWindow && !petWindow.isDestroyed()) {
+      petWindow.webContents?.send('app:hidden')
+    }
+  })
 
   appWindow.on('close', (e) => {
     if (app.isQuitting) return
@@ -313,6 +331,9 @@ function createAppWindow() {
 }
 
 function showAppWindow() {
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.setAlwaysOnTop(false)
+  }
   if (appWindow && !appWindow.isDestroyed()) {
     appWindow.show()
     appWindow.focus()
@@ -324,6 +345,9 @@ function showAppWindow() {
 function hideAppWindow() {
   if (appWindow && !appWindow.isDestroyed()) {
     appWindow.hide()
+  }
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.setAlwaysOnTop(true, 'screen-saver')
   }
 }
 
@@ -402,6 +426,7 @@ function registerIpc() {
     const value = Boolean(ignore)
     if (value) petWindow.setIgnoreMouseEvents(true, { forward: true })
     else petWindow.setIgnoreMouseEvents(false)
+    logEvent('pet:setIgnoreMouseEvents', { value })
     return value
   })
 

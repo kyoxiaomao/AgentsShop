@@ -1,11 +1,9 @@
-import { Link, useLocation } from 'react-router-dom'
-import { useSelector } from 'react-redux'
+import { useLocation } from 'react-router-dom'
 import Header from './Header'
 import Sidebar from './Sidebar'
 
 export default function Layout({ children }) {
   const location = useLocation()
-  const { role } = useSelector((state) => state.auth)
   const isAdminRoute = location.pathname.startsWith('/admin')
 
   return (

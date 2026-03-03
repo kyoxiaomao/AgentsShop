@@ -11,6 +11,8 @@ export class MainScene extends Scene {
     this.direction = 1 // 1: right, -1: left
     this.isHovering = false
     this.isWiggling = false
+    this.isDragging = false
+    this.didDrag = false
     this.baseAntWidth = 96
     this.baseAntHeight = 96
   }
@@ -37,6 +39,7 @@ export class MainScene extends Scene {
 
     // Interactive
     this.ant.setInteractive({ useHandCursor: true, pixelPerfect: true })
+    this.input.setDraggable(this.ant)
 
     // Events
     this.ant.on('pointerover', () => {
@@ -45,6 +48,7 @@ export class MainScene extends Scene {
       this.ant.displayWidth = this.baseAntWidth * 1.2
       this.ant.displayHeight = this.baseAntHeight * 1.2
       EventBus.emit('set-interaction-lock', true)
+      EventBus.emit('request-ignore', { value: false, source: 'ant:pointerover' })
     })
 
     this.ant.on('pointerout', () => {
@@ -53,10 +57,40 @@ export class MainScene extends Scene {
       this.ant.displayWidth = this.baseAntWidth
       this.ant.displayHeight = this.baseAntHeight
       EventBus.emit('set-interaction-lock', false)
+      EventBus.emit('request-ignore', { value: true, source: 'ant:pointerout' })
     })
 
     this.ant.on('pointerdown', () => {
-      this.wiggle()
+      this.didDrag = false
+    })
+
+    this.input.on('dragstart', (_pointer, gameObject) => {
+      if (gameObject !== this.ant) return
+      this.isDragging = true
+      this.didDrag = true
+      this.ant.setTexture('ant-idle')
+      EventBus.emit('set-interaction-lock', true)
+      EventBus.emit('request-ignore', { value: false, source: 'ant:dragstart' })
+    })
+
+    this.input.on('drag', (_pointer, gameObject, dragX, dragY) => {
+      if (gameObject !== this.ant) return
+      const { width, height } = this.scale
+      const halfWidth = this.ant.displayWidth / 2
+      const minX = halfWidth
+      const maxX = width - halfWidth
+      const minY = this.ant.displayHeight
+      const maxY = height
+      this.ant.x = Math.min(Math.max(dragX, minX), maxX)
+      this.ant.y = Math.min(Math.max(dragY, minY), maxY)
+    })
+
+    this.input.on('dragend', (_pointer, gameObject) => {
+      if (gameObject !== this.ant) return
+      this.isDragging = false
+      this.ant.setTexture('ant-walk')
+      EventBus.emit('set-interaction-lock', false)
+      EventBus.emit('request-ignore', { value: true, source: 'ant:dragend' })
     })
 
     // Listen to React updates
@@ -99,7 +133,9 @@ export class MainScene extends Scene {
 
   update(time, delta) {
     if (!this.ant || !this.ant.visible) return
-    if (this.isHovering) return // Stop moving when hovering
+    const pointer = this.input?.activePointer
+    const isPointerOverAnt = Boolean(pointer && this.ant.getBounds().contains(pointer.x, pointer.y))
+    if (this.isHovering || this.isDragging || isPointerOverAnt) return
 
     const dt = delta / 1000 // seconds
     const { width } = this.scale

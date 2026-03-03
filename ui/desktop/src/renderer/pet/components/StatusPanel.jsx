@@ -6,7 +6,7 @@ const electronApi = (() => {
   return null
 })()
 
-export default function StatusPanel({ open, onClose }) {
+export default function StatusPanel({ open }) {
   const [data, setData] = useState(null)
   const [activeTab, setActiveTab] = useState('system')
 
@@ -36,35 +36,13 @@ export default function StatusPanel({ open, onClose }) {
           pointer-events-auto
           w-[680px] max-w-[calc(100vw-32px)]
           min-h-[420px]
-          rounded-xl
-          bg-slate-900/80 border border-white/10
-          backdrop-blur-xl
-          p-4
+          p-3
           text-white/90
           flex flex-col
         "
         style={{ margin: '24px auto 0' }}
       >
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold">状态面板</span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="
-              border-none
-              bg-white/10
-              text-white/90
-              rounded-[10px]
-              px-2.5 py-1.5
-              cursor-pointer
-              text-sm
-              hover:bg-white/20 transition-colors
-            "
-          >
-            关闭
-          </button>
-        </div>
-        <div className="flex items-center gap-2 border-b border-white/10 pb-2 mb-3 text-xs">
+        <div className="flex items-center gap-2 mb-3 text-xs">
           <button
             type="button"
             onClick={() => setActiveTab('system')}

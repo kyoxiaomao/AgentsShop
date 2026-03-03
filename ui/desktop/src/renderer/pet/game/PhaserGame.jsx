@@ -65,7 +65,7 @@ export default function PhaserGame({ settings, resetSignal, onInteractionLockCha
   return (
     <div
       ref={containerRef}
-      className="w-full h-full pointer-events-none"
+      className="w-full h-full pointer-events-auto"
     />
   )
 }
