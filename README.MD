@@ -9,30 +9,33 @@
 
 ```text
 AgentsShop/
-├─ agents/                      # Agent 实现（基于 agentscope）
-├─ datacenter/                  # 轻量后端：Agent 发现/状态/消息存储 + HTTP API
-├─ models/                      # 复用模块：LLM 适配层等
+├─ agents/                      # Agent 实现
+├─ datacenter/                  # 轻量后端：Agent 注册/状态/消息存储 + HTTP/WS
+├─ models/                      # 复用模块：LLM 适配层
 ├─ ui/
-│  ├─ web/index/                # Web：React + Vite + Tailwind
-│  └─ desktop/                  # Desktop：Electron + React + Phaser + Vite
+│  └─ desktop/                  # Electron + React + Phaser + Vite
 ├─ docs/                        # 文档与备忘
-├─ logs/                        # 运行日志（chat/debug 等）
-├─ msgdata/                     # 聊天消息落盘（jsonl）
 ├─ .trae/                       # Trae 规则与规格文档（IDE/工作流相关）
 ├─ .env / .env.example          # 环境变量示例（本仓库包含真实 .env，请注意安全）
 ├─ .gitignore
 ├─ README.MD
-└─ start-dev.ps1                # 顶层开发启动脚本（转到 ui/web/index 执行 dev:all）
+├─ clean-runtime-data.ps1       # 统一清理脚本（日志/消息/旧目录）
+├─ kill-electron.ps1            # 清理残留进程与占用端口
+├─ mingling.md                  # 开发备忘
+└─ start-dev.ps1                # 顶层开发启动脚本（datacenter + desktop）
 ```
 
 ### 根目录文件（按重要程度）
 
 **文件清单**
-- `start-dev.ps1`：开发启动入口（进入 `ui\web\index` 执行 `npm run dev:all`，同时拉起 Web + datacenter）
+- `start-dev.ps1`：开发启动入口（先清理运行数据，再拉起 datacenter + desktop）
+- `clean-runtime-data.ps1`：统一清理入口（`ui/logs/ui_debug.jsonl`、`datacenter/logs/server_debug.jsonl`、消息 jsonl）
+- `kill-electron.ps1`：清理残留 Electron 及占用 5173/8000 端口的相关进程
 - `README.MD`：项目说明（本文件）
 - `.env`：本地环境变量（包含敏感信息时不要提交/外发）
 - `.env.example`：环境变量示例模板（用于复制生成本地 `.env`）
 - `.gitignore`：Git 忽略规则
+- `mingling.md`：开发命令备忘
 
 ### agents（Agent 实现）
 
@@ -41,7 +44,7 @@ AgentsShop/
 
 **模块定位**
 - 存放各个 Agent 的实现与运行配置。
-- datacenter 会从这里自动发现可用 Agent（通过扫描包含 `BaseAgent` 的 `.py` 文件提取 `name/cn_name`）。
+- datacenter 根据 `datacenter/service/agents/agents_status.json` 中的 `class_path` 注册可用 Agent。
 
 **文件清单（按重要程度）**
 - `queen/Queen_Sera/sera_agent.py`：现有 Agent 实现（SeraAgent），负责模型/参数选择与对话方法封装
@@ -60,13 +63,14 @@ AgentsShop/
 
 **模块定位**
 - 混合模式后端：HTTP 提供 Agent 列表/状态与消息历史；WebSocket 提供对话流式输出。
-- 负责从 `agents/` 自动发现 Agent，并生成给前端使用的快照（`ui_snapshot.json`）。
+- Agent 注册信息来自 `service/agents/agents_status.json` 静态配置。
 
 **文件清单（按重要程度）**
 - `server.py`：HTTP + WebSocket 服务入口（路由请求并调用 service 层处理）
-- `service/agents/service_agents.py`：Agent 注册与实例获取
+- `service/agents/service_agents.py`：从 JSON 加载 Agent 注册映射并懒加载实例
 - `service/message/message.py`：聊天消息转发、流式回复与消息落盘
-- `service/agents/agents_status.json`：Agent 与状态的静态快照
+- `service/agents/agents_status.json`：Agent 静态配置（`id/name/cn_name/enabled/class_path`）
+- `logs/server_debug.jsonl`：后端核心运行日志
 
 ### models（复用能力模块）
 
@@ -79,29 +83,6 @@ AgentsShop/
 **文件清单（按重要程度）**
 - `llm_adapter.py`：LLM 适配层实现（仅保留直连 OpenAI 的流式增量解析）
 - `__init__.py`：包初始化
-
-### ui/web/index（网页端）
-
-**目录**
-- `d:\AgentsShop\ui\web\index\`
-
-**模块定位**
-- React + Vite + Tailwind 的网页端（包含用户页与管理页）。
-- 默认通过 Vite 代理访问 datacenter 的 `/api/*`（`/api` → `http://127.0.0.1:8000`）。
-
-**文件清单（按重要程度）**
-- `package.json`：前端脚本入口（`dev:all` 并行启动 datacenter + Vite；`dev:index`/`dev:admin` 分别打开用户页/管理页）
-- `vite.config.mjs`：Vite 配置（开发端口、`/api` 代理、多入口构建）
-- `src/App.jsx`：用户页主应用（加载 agents/消息；输入框前的下拉框决定 mode：聊天/任务/工具，并随 `/api/chat/stream` 一起发送）
-- `src/main.jsx`：用户页挂载入口
-- `index.html`：用户页 HTML 入口（加载 `/src/main.jsx`）
-- `src/admin/AdminApp.jsx`：管理页主应用（UI 骨架/占位模块）
-- `src/admin/main.jsx`：管理页挂载入口
-- `admin.html`：管理页 HTML 入口（加载 `/src/admin/main.jsx`）
-- `src/index.css`：Tailwind 与页面基础样式
-- `tailwind.config.js`：Tailwind 配置
-- `postcss.config.js`：PostCSS 配置（Tailwind/Autoprefixer）
-- `package-lock.json`：npm 依赖锁定文件
 
 ### ui/desktop（桌面端）
 
@@ -120,7 +101,6 @@ AgentsShop/
 - `package.json`：桌面端脚本入口（`dev`：Vite + Electron；`dist/pack`：打包发布）
 - `src/main/main.js`：Electron 主进程入口（窗口创建、托盘菜单、IPC、鼠标穿透控制）
 - `src/main/preload.js`：Preload（通过 contextBridge 暴露主进程 API 给渲染进程）
-- `src/renderer/main.jsx`：渲染进程入口（挂载 React）
 - `src/renderer/pet/App.jsx`：桌宠主组件（协调 UI 与 Phaser，控制鼠标穿透/交互锁）
 - `src/renderer/pet/game/PhaserGame.jsx`：Phaser 容器（创建 Phaser.Game，订阅 EventBus 事件）
 - `src/renderer/pet/game/scenes/MainScene.js`：核心场景（桌宠移动/边界/悬停/拖拽，向 EventBus 通知交互锁）
@@ -135,7 +115,8 @@ AgentsShop/
 - `src/renderer/app/store`：Redux store 与切片
 - `public/assets/ant-idle.png`：桌宠默认资源（主进程托盘图标与 Phaser 贴图）
 - `public/assets/.gitkeep`：占位文件，确保 assets 目录被 Git 跟踪
-- `index.html`：渲染进程 HTML 入口（加载 `/src/renderer/main.jsx`）
+- `index.html`：桌宠窗口 HTML 入口（加载 `/src/renderer/pet/main.jsx`）
+- `app.html`：应用窗口 HTML 入口（加载 `/src/renderer/app/main.jsx`）
 - `vite.config.mjs`：Vite 配置（桌面端渲染进程构建/开发）
 - `readme.md`：桌面端项目说明（架构与开发指南）
 - `.gitignore`：桌面端工程的 Git 忽略规则
@@ -147,17 +128,14 @@ AgentsShop/
 - `d:\AgentsShop\docs\`
 
 **文件清单（按重要程度）**
-- `mingling.md`：开发备忘（虚拟环境激活、依赖安装、常用启动命令）
 - `name.json`：名称映射表（英文名 → 中文名）
 
-### logs（运行日志）
+### 运行日志与消息
 
-**目录**
-- `d:\AgentsShop\logs\`
-
-**文件清单（按重要程度）**
-- `chat.jsonl`：对话日志（按行 JSON，记录角色/内容/时间等）
-- `debug.jsonl`：调试事件日志（前后端上报/状态更新等）
+**日志路径**
+- `d:\AgentsShop\ui\logs\ui_debug.jsonl`：桌面端主进程 + 渲染端 chat 关键日志
+- `d:\AgentsShop\datacenter\logs\server_debug.jsonl`：后端核心日志（server/ws/chat/error）
+- `d:\AgentsShop\datacenter\service\message\msgdata\*.jsonl`：会话消息落盘
 
 ### .trae（IDE/工作流配置）
 
@@ -169,5 +147,4 @@ AgentsShop/
 - `specs/document-project-structure/spec.md`：规格文档（本次 README 结构梳理）
 - `specs/document-project-structure/tasks.md`：任务拆分记录
 - `specs/document-project-structure/checklist.md`：验收检查清单
-
 

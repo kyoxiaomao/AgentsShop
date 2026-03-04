@@ -18,7 +18,6 @@ export default function App() {
   }, [])
   const isStatusView = view === 'status'
   const [speed, setSpeed] = useState(120)
-  const [resetSignal, setResetSignal] = useState(0)
   const [interactionLock, setInteractionLock] = useState(false)
   const [phaserLock, setPhaserLock] = useState(false)
   const [petVisible, setPetVisible] = useState(true)
@@ -93,14 +92,12 @@ export default function App() {
     <div className="w-full h-full relative">
       <PhaserGame
         settings={settings}
-        resetSignal={resetSignal}
         onInteractionLockChange={setPhaserLock}
         petVisible={petVisible}
       />
       <ControlButton
         speed={speed}
         onSpeedChange={setSpeed}
-        onReset={() => setResetSignal((x) => x + 1)}
         onInteractionLockChange={setInteractionLock}
         petVisible={petVisible}
         onPetVisibleChange={setPetVisible}

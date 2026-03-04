@@ -16,24 +16,6 @@ function getFullScreenBounds() {
 }
 
 const PET_WINDOW_Y_OFFSET = 25
-const PET_WINDOW_FIXED_WIDTH = 1920
-const PET_WINDOW_FIXED_HEIGHT = 1080
-const PET_WINDOW_BOTTOM_EXTRA = 50
-
-function getPetWindowBounds() {
-  const bounds = getFullScreenBounds()
-  return {
-    x: bounds.x,
-    y: bounds.y - PET_WINDOW_Y_OFFSET,
-    width: PET_WINDOW_FIXED_WIDTH,
-    height: PET_WINDOW_FIXED_HEIGHT + PET_WINDOW_BOTTOM_EXTRA,
-  }
-}
-
-function getWorkArea() {
-  const primary = screen.getPrimaryDisplay()
-  return primary.workArea
-}
 
 function getTrayIconPath() {
   return path.join(app.getAppPath(), 'public', 'assets', 'ant-idle.png')
@@ -48,15 +30,12 @@ function getDevServerUrl() {
 }
 
 function getLogFilePath() {
-  const logDir = path.resolve(app.getAppPath(), '..', 'logs')
+  const appPath = app.getAppPath()
+  const appBase = path.basename(appPath).toLowerCase()
+  const logDir =
+    appBase === 'desktop' ? path.resolve(appPath, '..', 'logs') : path.resolve(appPath, 'ui', 'logs')
   fs.mkdirSync(logDir, { recursive: true })
-  return path.join(logDir, 'debug.jsonl')
-}
-
-function clearDebugLog() {
-  try {
-    fs.writeFileSync(getLogFilePath(), '')
-  } catch {}
+  return path.join(logDir, 'ui_debug.jsonl')
 }
 
 function logEvent(event, data = {}) {
@@ -77,16 +56,18 @@ function attachWindowLogs(win, name) {
   const id = win.id
   win.on('ready-to-show', () => logEvent('window:ready-to-show', { name, id }))
   win.on('show', () => logEvent('window:show', { name, id }))
-  win.on('hide', () => logEvent('window:hide', { name, id }))
   win.on('close', () => logEvent('window:close', { name, id }))
   win.on('closed', () => logEvent('window:closed', { name, id }))
-  win.on('unresponsive', () => logEvent('window:unresponsive', { name, id }))
-  win.on('responsive', () => logEvent('window:responsive', { name, id }))
   win.webContents?.on('render-process-gone', (_e, details) => {
     logEvent('window:render-process-gone', { name, id, details })
   })
   win.webContents?.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL) => {
     logEvent('window:did-fail-load', { name, id, errorCode, errorDescription, validatedURL })
+  })
+  win.webContents?.on('console-message', (_event, level, message, line, sourceId) => {
+    if (typeof message !== 'string') return
+    if (!message.includes('[chat]')) return
+    logEvent('renderer:console', { name, id, level, message, line, sourceId })
   })
 }
 
@@ -408,25 +389,11 @@ function registerIpc() {
     }
   })
 
-  // 桌宠窗口控制
-  ipcMain.handle('pet:resetPosition', () => {
-    if (!petWindow || petWindow.isDestroyed()) return null
-    const bounds = getPetWindowBounds()
-    petWindow.setBounds({
-      x: bounds.x,
-      y: bounds.y,
-      width: bounds.width,
-      height: bounds.height,
-    }, false)
-    return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
-  })
-
   ipcMain.handle('pet:setIgnoreMouseEvents', (_e, ignore) => {
     if (!petWindow || petWindow.isDestroyed()) return null
     const value = Boolean(ignore)
     if (value) petWindow.setIgnoreMouseEvents(true, { forward: true })
     else petWindow.setIgnoreMouseEvents(false)
-    logEvent('pet:setIgnoreMouseEvents', { value })
     return value
   })
 
@@ -436,33 +403,27 @@ function registerIpc() {
   })
 
   ipcMain.on('pet:show', () => {
-    logEvent('ipc:pet:show')
     showPetWindow()
   })
 
   ipcMain.on('pet:hide', () => {
-    logEvent('ipc:pet:hide')
     hidePetWindow()
   })
 
   ipcMain.on('pet:openStatusWindow', () => {
-    logEvent('ipc:pet:openStatusWindow')
     showStatusWindow()
   })
 
   ipcMain.on('pet:closeStatusWindow', () => {
-    logEvent('ipc:pet:closeStatusWindow')
     closeStatusWindow()
   })
 
   // 应用窗口控制
   ipcMain.on('app:show', () => {
-    logEvent('ipc:app:show')
     showAppWindow()
   })
 
   ipcMain.on('app:hide', () => {
-    logEvent('ipc:app:hide')
     hideAppWindow()
   })
 
@@ -475,7 +436,6 @@ function registerIpc() {
 // ==================== 应用生命周期 ====================
 
 app.whenReady().then(() => {
-  clearDebugLog()
   logEvent('app:ready', { isDev: isDev() })
   // 创建桌宠窗口（常驻）
   createPetWindow()

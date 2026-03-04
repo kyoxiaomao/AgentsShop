@@ -2,16 +2,11 @@
   "version": 1,
   "agents": [
     {
-      "id": "seraAgent",
-      "name": "seraAgent",
+      "id": "Sera",
+      "name": "Sera",
       "cn_name": "塞瑞",
-      "enabled": true
+      "enabled": true,
+      "class_path": "agents.queen.Queen_Sera.sera_agent:SeraAgent"
     }
-  ],
-  "status": {
-    "seraAgent": {
-      "status": "idle",
-      "updated_at": "2026-02-28T15:21:53.007216Z"
-    }
-  }
+  ]
 }

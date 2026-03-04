@@ -10,9 +10,7 @@ export class MainScene extends Scene {
     this.ant = null
     this.direction = 1 // 1: right, -1: left
     this.isHovering = false
-    this.isWiggling = false
     this.isDragging = false
-    this.didDrag = false
     this.baseAntWidth = 96
     this.baseAntHeight = 96
   }
@@ -60,14 +58,9 @@ export class MainScene extends Scene {
       EventBus.emit('request-ignore', { value: true, source: 'ant:pointerout' })
     })
 
-    this.ant.on('pointerdown', () => {
-      this.didDrag = false
-    })
-
     this.input.on('dragstart', (_pointer, gameObject) => {
       if (gameObject !== this.ant) return
       this.isDragging = true
-      this.didDrag = true
       this.ant.setTexture('ant-idle')
       EventBus.emit('set-interaction-lock', true)
       EventBus.emit('request-ignore', { value: false, source: 'ant:dragstart' })
@@ -100,12 +93,6 @@ export class MainScene extends Scene {
       }
     })
 
-    EventBus.on('reset-position', () => {
-      this.ant.x = 0
-      this.direction = 1
-      this.ant.setFlipX(false)
-    })
-
     const handlePetVisible = (visible) => {
       if (!this.ant) return
       const nextVisible = Boolean(visible)
@@ -126,7 +113,6 @@ export class MainScene extends Scene {
     // Clean up listener on shutdown
     this.events.on('shutdown', () => {
       EventBus.off('update-settings')
-      EventBus.off('reset-position')
       EventBus.off('toggle-pet-visible', handlePetVisible)
     })
   }
@@ -162,23 +148,5 @@ export class MainScene extends Scene {
     }
 
     this.ant.x = nextX
-  }
-
-  wiggle() {
-    if (this.isWiggling) return
-    this.isWiggling = true
-
-    // Simple wiggle tween
-    this.tweens.add({
-      targets: this.ant,
-      angle: { from: -8, to: 8 },
-      duration: 100,
-      yoyo: true,
-      repeat: 5,
-      onComplete: () => {
-        this.ant.angle = 0
-        this.isWiggling = false
-      },
-    })
   }
 }

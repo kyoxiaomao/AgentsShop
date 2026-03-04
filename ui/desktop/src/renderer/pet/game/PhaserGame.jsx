@@ -3,7 +3,7 @@ import * as Phaser from 'phaser'
 import { MainScene } from './scenes/MainScene'
 import { EventBus } from './EventBus'
 
-export default function PhaserGame({ settings, resetSignal, onInteractionLockChange, petVisible }) {
+export default function PhaserGame({ settings, onInteractionLockChange, petVisible }) {
   const gameRef = useRef(null)
   const containerRef = useRef(null)
 
@@ -49,13 +49,6 @@ export default function PhaserGame({ settings, resetSignal, onInteractionLockCha
   useEffect(() => {
     EventBus.emit('update-settings', settings)
   }, [settings])
-
-  // Sync reset
-  useEffect(() => {
-    if (resetSignal > 0) {
-      EventBus.emit('reset-position')
-    }
-  }, [resetSignal])
 
   useEffect(() => {
     if (petVisible === undefined) return

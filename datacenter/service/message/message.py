@@ -1,7 +1,7 @@
 import datetime
 import json
 import os
-from typing import Iterable, Optional
+from typing import Iterable
 
 from datacenter.service.agents.service_agents import AgentRegistry
 
@@ -69,7 +69,7 @@ class MessageService:
                 messages.append(item)
         return messages
 
-    def stream_chat(self, agent_id: str, content: str, mode: Optional[str] = None) -> Iterable[str]:
+    def stream_chat(self, agent_id: str, content: str) -> Iterable[str]:
         # 调用 Agent 的流式对话接口
         agent = self._agent_registry.get_agent(agent_id)
         if hasattr(agent, "chat_stream"):

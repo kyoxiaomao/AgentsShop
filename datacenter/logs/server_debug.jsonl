@@ -1,0 +1,9 @@
+{"ts": "2026-03-04T06:34:10.105570Z", "event": "server:start", "data": {"host": "127.0.0.1", "port": 8000}}
+{"ts": "2026-03-04T06:34:25.262568Z", "event": "ws:open", "data": {"peer": "('127.0.0.1', 61721)"}}
+{"ts": "2026-03-04T06:34:25.267148Z", "event": "chat:start", "data": {"agent_id": "Sera", "session_id": "default"}}
+{"ts": "2026-03-04T06:34:29.396374Z", "event": "chat:first_delta", "data": {"agent_id": "Sera", "session_id": "default", "ms": 4129, "len": 2, "preview": "你好"}}
+{"ts": "2026-03-04T06:34:29.397903Z", "event": "chat:delta_probe", "data": {"agent_id": "Sera", "session_id": "default", "idx": 1, "len": 2, "since_start_ms": 4129, "gap_ms": 4129, "preview": "你好"}}
+{"ts": "2026-03-04T06:34:29.478213Z", "event": "chat:delta_probe", "data": {"agent_id": "Sera", "session_id": "default", "idx": 2, "len": 1, "since_start_ms": 4210, "gap_ms": 81, "preview": "，"}}
+{"ts": "2026-03-04T06:34:29.534103Z", "event": "chat:delta_probe", "data": {"agent_id": "Sera", "session_id": "default", "idx": 3, "len": 5, "since_start_ms": 4266, "gap_ms": 56, "preview": "我是塞瑞（"}}
+{"ts": "2026-03-04T06:35:01.753727Z", "event": "chat:done", "data": {"agent_id": "Sera", "session_id": "default", "delta_count": 225, "assistant_chars": 1592, "messages_count": 2, "first_delta_ms": 4129, "total_ms": 36486}}
+{"ts": "2026-03-04T06:35:01.755265Z", "event": "ws:close", "data": {"peer": "('127.0.0.1', 61721)"}}

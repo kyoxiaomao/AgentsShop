@@ -27,7 +27,11 @@ const chatSlice = createSlice({
     updateLastMessage: (state, action) => {
       const lastMessage = state.messages[state.messages.length - 1]
       if (lastMessage && lastMessage.id === action.payload.id) {
-        lastMessage.content = action.payload.content
+        Object.keys(action.payload).forEach((key) => {
+          if (key === 'id') return
+          if (action.payload[key] === undefined) return
+          lastMessage[key] = action.payload[key]
+        })
       }
     },
     setActiveAgent: (state, action) => {

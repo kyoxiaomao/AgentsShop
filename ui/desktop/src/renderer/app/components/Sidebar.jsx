@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { setAgents, setStatusMap, setActiveAgent } from '../store/chatSlice'
 
 const fallbackAgents = [
-  { id: 'seraAgent', name: 'seraAgent', cn_name: '塞瑞', enabled: true },
+  { id: 'Sera', name: 'Sera', cn_name: '塞瑞', enabled: true },
 ]
 
 const statusLabels = {

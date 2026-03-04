@@ -62,10 +62,6 @@ const markdownComponents = {
   ),
 }
 
-const fallbackAgents = [
-  { id: 'seraAgent', name: 'seraAgent', cn_name: '塞瑞', enabled: true },
-]
-
 function normalizeContent(value) {
   if (typeof value === 'string') return value
   if (value === null || value === undefined) return ''
@@ -73,11 +69,31 @@ function normalizeContent(value) {
   return String(value)
 }
 
+function resolveBackendBase() {
+  if (typeof window === 'undefined') return 'http://127.0.0.1:8000'
+  const host = window.location.host || ''
+  if (host === 'localhost:5173' || host === '127.0.0.1:5173') {
+    return 'http://127.0.0.1:8000'
+  }
+  return window.location.origin
+}
+
 function resolveWsUrl() {
-  if (typeof window === 'undefined') return 'ws://127.0.0.1:8000/ws'
-  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  const hostname = window.location.hostname || '127.0.0.1'
-  return `${protocol}://${hostname}:8000/ws`
+  const backendBase = resolveBackendBase()
+  return backendBase.replace(/^http/, 'ws') + '/ws'
+}
+
+function resolveApiUrl(path) {
+  return `${resolveBackendBase()}${path}`
+}
+
+function chatLog(level, event, data = {}) {
+  const text = `[chat] ${event} ${JSON.stringify(data)}`
+  if (level === 'error') {
+    console.error(text)
+    return
+  }
+  console.info(text)
 }
 
 export default function AgentPage() {
@@ -87,6 +103,8 @@ export default function AgentPage() {
   const [inputMode, setInputMode] = useState('聊天')
   const [dotCount, setDotCount] = useState(1)
   const streamIdRef = useRef(null)
+  const scrollContainerRef = useRef(null)
+  const scrollBottomRef = useRef(null)
 
   // 获取当前活跃的 Agent
   const activeAgent = useMemo(() => {
@@ -107,14 +125,17 @@ export default function AgentPage() {
     const agentId = activeAgent.rawName || activeAgent.id
     if (!agentId || agentId === 'unknown') return
 
-    fetch(`/api/messages?agent_id=${encodeURIComponent(agentId)}`)
+    const url = resolveApiUrl(`/api/messages?agent_id=${encodeURIComponent(agentId)}`)
+    fetch(url)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data?.messages)) {
           dispatch(setMessages(data.messages))
         }
       })
-      .catch(() => {})
+      .catch((error) => {
+        chatLog('error', 'messages fetch failed', { url, message: error?.message || 'unknown_error' })
+      })
   }, [activeAgent.id, activeAgent.rawName, dispatch])
 
   // 加载动画
@@ -125,6 +146,14 @@ export default function AgentPage() {
     }, 500)
     return () => window.clearInterval(timer)
   }, [sending])
+
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+    window.requestAnimationFrame(() => {
+      scrollBottomRef.current?.scrollIntoView({ block: 'end' })
+    })
+  }, [messages, sending])
 
   const getDisplayName = (role) => {
     if (role === 'user') return '我'
@@ -150,18 +179,46 @@ export default function AgentPage() {
 
     // 添加用户消息和空的助手消息
     dispatch(addMessage({ role: 'user', content: normalizeContent(content), ts: new Date().toISOString() }))
-    dispatch(addMessage({ role: 'assistant', content: '', ts: new Date().toISOString(), id: tempId }))
+    dispatch(addMessage({ role: 'assistant', content: '', ts: new Date().toISOString(), id: tempId, firstDeltaMs: null }))
 
     try {
       const wsUrl = resolveWsUrl()
+      const sendStartedAt = performance.now()
+      chatLog('info', 'ws connect begin', {
+        wsUrl,
+        origin: window.location.origin,
+        href: window.location.href,
+        online: navigator.onLine,
+      })
       await new Promise((resolve, reject) => {
         let settled = false
         let assistantContent = ''
+        let firstDeltaMs = null
+        let deltaCount = 0
+        let lastDeltaAt = sendStartedAt
+        let lastHeartbeatAt = sendStartedAt
+        let lastSeq = 0
         const ws = new WebSocket(wsUrl)
+        const heartbeatTimer = window.setInterval(() => {
+          if (settled) return
+          const now = performance.now()
+          chatLog('info', 'stream heartbeat', {
+            deltaCount,
+            sinceStartMs: Math.max(0, Math.round(now - sendStartedAt)),
+            sinceLastDeltaMs: Math.max(0, Math.round(now - lastDeltaAt)),
+          })
+          lastHeartbeatAt = now
+        }, 5000)
+        const timeoutId = window.setTimeout(() => {
+          chatLog('error', 'ws timeout', { wsUrl, readyState: ws.readyState })
+          settle(new Error('ws_timeout'))
+        }, 60000)
 
         const settle = (error) => {
           if (settled) return
           settled = true
+          window.clearTimeout(timeoutId)
+          window.clearInterval(heartbeatTimer)
           if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
             ws.close()
           }
@@ -170,6 +227,12 @@ export default function AgentPage() {
         }
 
         ws.onopen = () => {
+          chatLog('info', 'ws open', {
+            agentId,
+            wsUrl,
+            readyState: ws.readyState,
+            connectMs: Math.max(0, Math.round(performance.now() - sendStartedAt)),
+          })
           ws.send(
             JSON.stringify({
               type: 'chat',
@@ -186,17 +249,81 @@ export default function AgentPage() {
           try {
             payload = JSON.parse(event.data)
           } catch {
+            chatLog('error', 'ws parse failed', { wsUrl, raw: String(event?.data || '').slice(0, 200) })
             return
           }
           if (payload.type === 'delta') {
+            const now = performance.now()
             const text = normalizeContent(payload.content)
+            const seq = Number(payload?.seq || 0)
+            deltaCount += 1
+            const sentTs = typeof payload?.sent_ts === 'string' ? payload.sent_ts : null
+            const sentMsFromStart = Number(payload?.sent_ms_from_start || 0)
+            let e2eMs = null
+            if (sentTs) {
+              const sentEpoch = Date.parse(sentTs)
+              if (!Number.isNaN(sentEpoch)) {
+                e2eMs = Math.max(0, Date.now() - sentEpoch)
+              }
+            }
+            if (firstDeltaMs === null && text) {
+              firstDeltaMs = Math.max(0, Math.round(now - sendStartedAt))
+              chatLog('info', 'first delta', {
+                ms: firstDeltaMs,
+                len: text.length,
+                preview: text.slice(0, 30),
+                seq,
+                sentMsFromStart,
+                e2eMs,
+              })
+            }
+            if (deltaCount <= 10) {
+              chatLog('info', 'delta probe', {
+                idx: deltaCount,
+                seq,
+                len: text.length,
+                sinceStartMs: Math.max(0, Math.round(now - sendStartedAt)),
+                gapMs: Math.max(0, Math.round(now - lastDeltaAt)),
+                sentMsFromStart,
+                e2eMs,
+              })
+            }
+            if (seq > 0 && lastSeq > 0 && seq !== lastSeq + 1) {
+              chatLog('info', 'delta seq jump', { lastSeq, seq })
+            }
+            if (now - lastDeltaAt >= 5000 && now - lastHeartbeatAt >= 5000) {
+              chatLog('info', 'delta gap', {
+                idx: deltaCount,
+                seq,
+                gapMs: Math.max(0, Math.round(now - lastDeltaAt)),
+                len: text.length,
+                sentMsFromStart,
+                e2eMs,
+              })
+            }
+            lastDeltaAt = now
+            if (seq > 0) lastSeq = seq
             assistantContent += text
-            dispatch(updateLastMessage({ id: tempId, content: assistantContent }))
+            dispatch(updateLastMessage({ id: tempId, content: assistantContent, firstDeltaMs }))
             return
           }
           if (payload.type === 'done') {
+            chatLog('info', 'ws done', {
+              deltaCount,
+              firstDeltaMs,
+              totalMs: Math.max(0, Math.round(performance.now() - sendStartedAt)),
+            })
             if (Array.isArray(payload?.messages)) {
-              dispatch(setMessages(payload.messages))
+              const mergedMessages = payload.messages.map((msg) => ({ ...msg }))
+              if (firstDeltaMs !== null) {
+                for (let i = mergedMessages.length - 1; i >= 0; i -= 1) {
+                  if (mergedMessages[i]?.role === 'assistant') {
+                    mergedMessages[i] = { ...mergedMessages[i], firstDeltaMs }
+                    break
+                  }
+                }
+              }
+              dispatch(setMessages(mergedMessages))
             }
             settle()
             return
@@ -207,15 +334,26 @@ export default function AgentPage() {
         }
 
         ws.onerror = () => {
+          chatLog('error', 'ws error', { wsUrl, readyState: ws.readyState })
           settle(new Error('ws_error'))
         }
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
+          chatLog('info', 'ws close', {
+            wsUrl,
+            code: event?.code,
+            reason: event?.reason,
+            wasClean: event?.wasClean,
+            readyState: ws.readyState,
+          })
           if (!settled) resolve()
         }
       })
     } catch (error) {
-      console.error('Chat error:', error)
+      chatLog('error', 'request failed', {
+        message: error?.message || 'unknown_error',
+        stack: error?.stack || '',
+      })
     } finally {
       dispatch(setSending(false))
       streamIdRef.current = null
@@ -241,7 +379,10 @@ export default function AgentPage() {
       </div>
 
       {/* 消息区域 */}
-      <div className="flex-1 rounded-2xl border border-slate-800 bg-dark-950/60 p-4 text-sm text-slate-300 overflow-auto">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 rounded-2xl border border-slate-800 bg-dark-950/60 p-4 text-sm text-slate-300 overflow-auto"
+      >
         <div className="space-y-3">
           {messages.length === 0 ? (
             <div className="rounded-xl bg-dark-900/70 px-3 py-2">
@@ -253,6 +394,7 @@ export default function AgentPage() {
               const name = getDisplayName(item.role)
               const isStreamingTarget = item.id && item.id === streamIdRef.current
               const showThinking = sending && isStreamingTarget && !normalizeContent(item.content)
+              const showFirstDeltaMs = !isUser && typeof item.firstDeltaMs === 'number'
 
               return (
                 <div
@@ -263,8 +405,13 @@ export default function AgentPage() {
                     {getAvatarLabel(item.role)}
                   </div>
                   <div className={`max-w-[75%] ${isUser ? 'items-end' : ''}`}>
-                    <div className={`mb-1 text-xs text-slate-400 ${isUser ? 'text-right' : ''}`}>
+                    <div className={`mb-1 flex items-center gap-2 text-xs text-slate-400 ${isUser ? 'justify-end text-right' : ''}`}>
                       {name}
+                      {showFirstDeltaMs ? (
+                        <span className="rounded-md border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300">
+                          首片段 {item.firstDeltaMs}ms
+                        </span>
+                      ) : null}
                     </div>
                     <div
                       className={`rounded-xl px-3 py-2 ${
@@ -284,6 +431,7 @@ export default function AgentPage() {
               )
             })
           )}
+          <div ref={scrollBottomRef} />
         </div>
       </div>
 
@@ -322,4 +470,3 @@ export default function AgentPage() {
     </div>
   )
 }
-

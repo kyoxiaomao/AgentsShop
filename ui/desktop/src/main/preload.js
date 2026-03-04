@@ -8,7 +8,6 @@ contextBridge.exposeInMainWorld('electronApi', {
 
   // 桌宠专用
   pet: {
-    resetWindowPosition: () => ipcRenderer.invoke('pet:resetPosition'),
     setIgnoreMouseEvents: (ignore) => ipcRenderer.invoke('pet:setIgnoreMouseEvents', ignore),
     openAppWindow: () => ipcRenderer.send('pet:openApp'),
     openStatusWindow: () => ipcRenderer.send('pet:openStatusWindow'),
