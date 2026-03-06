@@ -3,6 +3,7 @@ import datetime
 import json
 import os
 import time
+import uuid
 from functools import partial
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
@@ -13,6 +14,7 @@ from websockets.http11 import Response
 
 from datacenter.service.agents.service_agents import AgentRegistry
 from datacenter.service.message.message import MessageService
+from datacenter.service.okras.okras import OkrasService
 
 
 def _server_log_file() -> str:
@@ -44,12 +46,20 @@ class ServerState:
             agent_registry=self.agent_registry,
             msgdata_dir=self._resolve_msgdata_dir(),
         )
+        from utils.toolkit_registry import ensure_toolkit_initialized
+
+        ensure_toolkit_initialized()
+        self.okras_service = OkrasService(storage_dir=self._resolve_okras_dir())
         # Agent 状态映射
         self._status_map: dict[str, dict[str, str]] = {}
 
     def _resolve_msgdata_dir(self) -> str:
         # 消息落盘目录
         return os.path.join(os.path.dirname(__file__), "service", "message", "msgdata")
+
+    def _resolve_okras_dir(self) -> str:
+        project_root = os.path.dirname(os.path.dirname(__file__))
+        return os.path.join(project_root, "tasks", "okras")
 
     def _now_iso(self) -> str:
         # 统一使用 UTC ISO 时间戳
@@ -96,6 +106,7 @@ async def handle_chat(state: ServerState, ws, payload: dict[str, Any]) -> None:
     agent_id = str(payload.get("agent_id") or "").strip()
     content = str(payload.get("content") or "")
     session_id = str(payload.get("session_id") or "default")
+    mode = str(payload.get("mode") or "聊天").strip()
 
     if not agent_id:
         await send_json(ws, {"type": "error", "code": "missing_agent", "message": "agent_id_required"})
@@ -105,10 +116,14 @@ async def handle_chat(state: ServerState, ws, payload: dict[str, Any]) -> None:
         await send_json(ws, {"type": "error", "code": "missing_content", "message": "content_required"})
         return
 
+    if mode == "任务":
+        await handle_task_chat(state, ws, agent_id=agent_id, content=content, session_id=session_id, mode=mode)
+        return
+
     try:
         _log_server_event(
             "chat:start",
-            {"agent_id": agent_id, "session_id": session_id},
+            {"agent_id": agent_id, "session_id": session_id, "mode": mode},
         )
         started_at = time.perf_counter()
         first_delta_ms: int | None = None
@@ -191,8 +206,103 @@ async def handle_chat(state: ServerState, ws, payload: dict[str, Any]) -> None:
             {
                 "agent_id": agent_id,
                 "session_id": session_id,
+                "mode": mode,
                 "error": str(error),
             },
+        )
+
+
+async def handle_task_chat(
+    state: ServerState,
+    ws,
+    *,
+    agent_id: str,
+    content: str,
+    session_id: str,
+    mode: str,
+) -> None:
+    try:
+        state.set_status(agent_id, "busy")
+        state.message_service.append_message(agent_id, session_id, "user", content)
+        _log_server_event("task:start", {"agent_id": agent_id, "session_id": session_id, "mode": mode})
+
+        agent = state.agent_registry.get_agent(agent_id)
+        if hasattr(agent, "decompose_task"):
+            task_data = await asyncio.to_thread(agent.decompose_task, content)
+        else:
+            from utils.skills.task_breakdown import decompose_task_text
+
+            task_data = decompose_task_text(content)
+
+        objective = str(task_data.get("objective") or "").strip() or "完成用户任务并给出可验证结果"
+        raw_key_results = task_data.get("key_results")
+        key_results: list[str] = []
+        if isinstance(raw_key_results, list):
+            for item in raw_key_results:
+                text = str(item or "").strip()
+                if text:
+                    key_results.append(text)
+        if not key_results:
+            key_results = ["完成任务执行并输出可复用结果"]
+
+        created_at = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
+        o_id = f"o-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:8]}"
+        records: list[dict[str, Any]] = []
+        for key_result in key_results:
+            records.append(
+                {
+                    "o_id": o_id,
+                    "k_id": f"k-{uuid.uuid4().hex}",
+                    "O": objective,
+                    "K": key_result,
+                    "R": {"type": "text", "content": "已生成子目标，待执行"},
+                    "A": agent_id,
+                    "S": {"score": 0, "rule": "okr_v1", "detail": "任务拆解阶段未执行"},
+                    "status": "planned",
+                    "session_id": session_id,
+                    "source_mode": mode,
+                    "created_at": created_at,
+                    "updated_at": created_at,
+                }
+            )
+        okras_file_path = await asyncio.to_thread(state.okras_service.append_okras_records, records)
+
+        assistant_content = "\n".join(
+            [
+                f"任务目标（O）：{objective}",
+                "关键结果（K）：",
+                *[f"{idx + 1}. {value}" for idx, value in enumerate(key_results)],
+                f"已写入：{okras_file_path}",
+            ]
+        )
+        state.message_service.append_message(agent_id, session_id, "assistant", assistant_content)
+        state.set_status(agent_id, "idle")
+        await send_json(
+            ws,
+            {
+                "type": "task_summary",
+                "objective": objective,
+                "key_results": key_results,
+                "okras_file_path": okras_file_path,
+            },
+        )
+        messages = state.message_service.get_messages(agent_id, session_id)
+        await send_json(ws, {"type": "done", "messages": messages})
+        _log_server_event(
+            "task:done",
+            {
+                "agent_id": agent_id,
+                "session_id": session_id,
+                "okras_file_path": okras_file_path,
+                "key_results_count": len(key_results),
+            },
+        )
+    except Exception as error:
+        state.set_status(agent_id, "idle")
+        await send_json(ws, {"type": "error", "code": "task_failed", "message": str(error)})
+        _log_server_event(
+            "task:error",
+            {"agent_id": agent_id, "session_id": session_id, "error": str(error)},
         )
 
 

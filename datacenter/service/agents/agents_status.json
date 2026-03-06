@@ -7,6 +7,13 @@
       "cn_name": "塞瑞",
       "enabled": true,
       "class_path": "agents.queen.Queen_Sera.sera_agent:SeraAgent"
+    },
+    {
+      "id": "Lila",
+      "name": "Lila",
+      "cn_name": "莉拉",
+      "enabled": true,
+      "class_path": "agents.king.King_Lila.lila_agent:LilaAgent"
     }
   ]
 }

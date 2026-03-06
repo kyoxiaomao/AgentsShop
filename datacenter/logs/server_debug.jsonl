@@ -1,9 +1,25 @@
-{"ts": "2026-03-04T06:34:10.105570Z", "event": "server:start", "data": {"host": "127.0.0.1", "port": 8000}}
-{"ts": "2026-03-04T06:34:25.262568Z", "event": "ws:open", "data": {"peer": "('127.0.0.1', 61721)"}}
-{"ts": "2026-03-04T06:34:25.267148Z", "event": "chat:start", "data": {"agent_id": "Sera", "session_id": "default"}}
-{"ts": "2026-03-04T06:34:29.396374Z", "event": "chat:first_delta", "data": {"agent_id": "Sera", "session_id": "default", "ms": 4129, "len": 2, "preview": "你好"}}
-{"ts": "2026-03-04T06:34:29.397903Z", "event": "chat:delta_probe", "data": {"agent_id": "Sera", "session_id": "default", "idx": 1, "len": 2, "since_start_ms": 4129, "gap_ms": 4129, "preview": "你好"}}
-{"ts": "2026-03-04T06:34:29.478213Z", "event": "chat:delta_probe", "data": {"agent_id": "Sera", "session_id": "default", "idx": 2, "len": 1, "since_start_ms": 4210, "gap_ms": 81, "preview": "，"}}
-{"ts": "2026-03-04T06:34:29.534103Z", "event": "chat:delta_probe", "data": {"agent_id": "Sera", "session_id": "default", "idx": 3, "len": 5, "since_start_ms": 4266, "gap_ms": 56, "preview": "我是塞瑞（"}}
-{"ts": "2026-03-04T06:35:01.753727Z", "event": "chat:done", "data": {"agent_id": "Sera", "session_id": "default", "delta_count": 225, "assistant_chars": 1592, "messages_count": 2, "first_delta_ms": 4129, "total_ms": 36486}}
-{"ts": "2026-03-04T06:35:01.755265Z", "event": "ws:close", "data": {"peer": "('127.0.0.1', 61721)"}}
+{"ts": "2026-03-04T09:17:44.596104Z", "event": "server:start", "data": {"host": "127.0.0.1", "port": 8000}}
+{"ts": "2026-03-04T09:17:58.244701Z", "event": "ws:open", "data": {"peer": "('127.0.0.1', 53236)"}}
+{"ts": "2026-03-04T09:17:58.252624Z", "event": "chat:start", "data": {"agent_id": "Sera", "session_id": "default"}}
+{"ts": "2026-03-04T09:18:02.540757Z", "event": "chat:first_delta", "data": {"agent_id": "Sera", "session_id": "default", "ms": 4288, "len": 2, "preview": "你好"}}
+{"ts": "2026-03-04T09:18:02.542345Z", "event": "chat:delta_probe", "data": {"agent_id": "Sera", "session_id": "default", "idx": 1, "len": 2, "since_start_ms": 4288, "gap_ms": 4288, "preview": "你好"}}
+{"ts": "2026-03-04T09:18:02.638339Z", "event": "chat:delta_probe", "data": {"agent_id": "Sera", "session_id": "default", "idx": 2, "len": 1, "since_start_ms": 4385, "gap_ms": 97, "preview": "，"}}
+{"ts": "2026-03-04T09:18:02.728057Z", "event": "chat:delta_probe", "data": {"agent_id": "Sera", "session_id": "default", "idx": 3, "len": 5, "since_start_ms": 4475, "gap_ms": 90, "preview": "我是塞瑞（"}}
+{"ts": "2026-03-04T09:18:16.369345Z", "event": "ws:error", "data": {"peer": "('127.0.0.1', 53236)", "error": "received 1001 (going away); then sent 1001 (going away)"}}
+{"ts": "2026-03-04T09:18:16.370972Z", "event": "ws:close", "data": {"peer": "('127.0.0.1', 53236)"}}
+{"ts": "2026-03-04T11:47:36.614650Z", "event": "ws:open", "data": {"peer": "('127.0.0.1', 63208)"}}
+{"ts": "2026-03-04T11:47:36.628339Z", "event": "chat:start", "data": {"agent_id": "Sera", "session_id": "ui-like-test"}}
+{"ts": "2026-03-04T11:47:39.578579Z", "event": "chat:first_delta", "data": {"agent_id": "Sera", "session_id": "ui-like-test", "ms": 2942, "len": 2, "preview": "你好"}}
+{"ts": "2026-03-04T11:47:39.588357Z", "event": "chat:delta_probe", "data": {"agent_id": "Sera", "session_id": "ui-like-test", "idx": 1, "len": 2, "since_start_ms": 2942, "gap_ms": 2942, "preview": "你好"}}
+{"ts": "2026-03-04T11:47:39.680933Z", "event": "chat:delta_probe", "data": {"agent_id": "Sera", "session_id": "ui-like-test", "idx": 2, "len": 5, "since_start_ms": 3043, "gap_ms": 101, "preview": "。我是**"}}
+{"ts": "2026-03-04T11:47:39.769856Z", "event": "chat:delta_probe", "data": {"agent_id": "Sera", "session_id": "ui-like-test", "idx": 3, "len": 7, "since_start_ms": 3132, "gap_ms": 89, "preview": "塞瑞**。\n\n"}}
+{"ts": "2026-03-04T11:47:43.366140Z", "event": "chat:done", "data": {"agent_id": "Sera", "session_id": "ui-like-test", "delta_count": 28, "assistant_chars": 207, "messages_count": 2, "first_delta_ms": 2942, "total_ms": 6730}}
+{"ts": "2026-03-04T11:47:43.378407Z", "event": "ws:close", "data": {"peer": "('127.0.0.1', 63208)"}}
+{"ts": "2026-03-04T11:49:51.274484Z", "event": "ws:open", "data": {"peer": "('127.0.0.1', 63246)"}}
+{"ts": "2026-03-04T11:49:51.288384Z", "event": "task:start", "data": {"agent_id": "Lila", "session_id": "task-mode-test", "mode": "任务"}}
+{"ts": "2026-03-04T11:49:51.318238Z", "event": "task:done", "data": {"agent_id": "Lila", "session_id": "task-mode-test", "okras_file_path": "C:\\Users\\kyoxi\\AppData\\Local\\Temp\\tmpv0w7m69u\\okras-2026-03-04.jsonl", "key_results_count": 2}}
+{"ts": "2026-03-04T11:49:51.330513Z", "event": "ws:close", "data": {"peer": "('127.0.0.1', 63246)"}}
+{"ts": "2026-03-04T11:55:25.567191Z", "event": "ws:open", "data": {"peer": "('127.0.0.1', 51109)"}}
+{"ts": "2026-03-04T11:55:25.581026Z", "event": "task:start", "data": {"agent_id": "Lila", "session_id": "task-mode-test", "mode": "任务"}}
+{"ts": "2026-03-04T11:55:25.606781Z", "event": "task:done", "data": {"agent_id": "Lila", "session_id": "task-mode-test", "okras_file_path": "C:\\Users\\kyoxi\\AppData\\Local\\Temp\\tmphhyjr21k\\okras-2026-03-04.jsonl", "key_results_count": 2}}
+{"ts": "2026-03-04T11:55:25.618306Z", "event": "ws:close", "data": {"peer": "('127.0.0.1', 51109)"}}
